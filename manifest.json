@@ -1,0 +1,26 @@
+{
+    "name": "المنهج الشامل",
+    "short_name": "المنهج الشامل",
+    "description": "تطبيق تعليمي يحتوي على إجابات نموذجية لتقاويم الدروس والنماذج الوزارية",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#0a0118",
+    "theme_color": "#1a0a2e",
+    "dir": "rtl",
+    "lang": "ar",
+    "icons": [
+        {
+            "src": "images/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "images/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

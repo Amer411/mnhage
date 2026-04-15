@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="المنهج الشامل - تطبيق تعليمي يحتوي على إجابات نموذجية لتقاويم الدروس والنماذج الوزارية">
+    <meta name="theme-color" content="#1a0a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="المنهج الشامل">
+    <title>المنهج الشامل</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="images/icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css?v=8">
+</head>
+
+<body>
+    <!-- Animated Background -->
+    <div class="bg-animation">
+        <div class="bg-orb bg-orb-1"></div>
+        <div class="bg-orb bg-orb-2"></div>
+        <div class="bg-orb bg-orb-3"></div>
+    </div>
+
+    <!-- App Container -->
+    <div id="app">
+        <!-- ====== LOGIN SCREEN ====== -->
+        <div id="screen-login" class="screen active">
+            <div class="login-container">
+                <div class="login-card glass-card">
+                    <div class="login-logo">
+                        <div class="logo-icon">📚</div>
+                        <h1>المنهج الشامل</h1>
+                        <p class="login-subtitle">إجابات نموذجية • نماذج وزارية • مساعد ذكي</p>
+                    </div>
+                    <form id="login-form" autocomplete="off">
+                        <div class="input-group">
+                            <input type="password" id="password-input" placeholder="أدخل كلمة المرور" required autocomplete="off">
+                            <span class="input-icon">🔑</span>
+                        </div>
+                        <button type="submit" id="login-btn" class="btn btn-primary btn-full">
+                            <span class="btn-text">تسجيل الدخول</span>
+                            <span class="btn-loader hidden">⏳</span>
+                        </button>
+                        <p id="login-error" class="error-text hidden"></p>
+                    </form>
+                    <p class="login-footer">إعداد: عمرو كريم</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== MAIN SCREEN ====== -->
+        <div id="screen-main" class="screen">
+            <header class="app-header">
+                <h1 class="header-title">المنهج الشامل</h1>
+                <button id="logout-btn" class="header-btn" title="تسجيل الخروج">🚪</button>
+            </header>
+            <div class="screen-content">
+                <div class="main-grid">
+                    <div class="main-card glass-card" data-navigate="models" id="card-models">
+                        <div class="card-icon">📝</div>
+                        <h2>النماذج</h2>
+                        <p>نماذج وزارية سابقة مع حلولها</p>
+                    </div>
+                    <div class="main-card glass-card" data-navigate="answers" id="card-answers">
+                        <div class="card-icon">✅</div>
+                        <h2>إجابات التقاويم</h2>
+                        <p>إجابات نموذجية لتقاويم الدروس</p>
+                    </div>
+                    <div class="main-card glass-card" data-navigate="summaries" id="card-summaries">
+                        <div class="card-icon">📋</div>
+                        <h2>ملخصات مضمونة</h2>
+                        <p>ملخصات شاملة للمواد الدراسية</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== MODELS SCREEN (النماذج) ====== -->
+        <div id="screen-models" class="screen">
+            <header class="app-header">
+                <button class="header-btn back-btn" data-back>←</button>
+                <h1 class="header-title">النماذج</h1>
+            </header>
+            <div class="screen-content">
+                <div class="category-grid" id="models-list"></div>
+            </div>
+        </div>
+
+        <!-- ====== ANSWERS SCREEN (إجابات التقاويم) ====== -->
+        <div id="screen-answers" class="screen">
+            <header class="app-header">
+                <button class="header-btn back-btn" data-back>←</button>
+                <h1 class="header-title">إجابات التقاويم</h1>
+            </header>
+            <div class="screen-content">
+                <div class="category-grid" id="answers-list"></div>
+            </div>
+        </div>
+
+        <!-- ====== SUMMARIES SCREEN ====== -->
+        <div id="screen-summaries" class="screen">
+            <header class="app-header">
+                <button class="header-btn back-btn" data-back>←</button>
+                <h1 class="header-title">ملخصات مضمونة</h1>
+            </header>
+            <div class="screen-content">
+                <div class="category-grid" id="summaries-list"></div>
+            </div>
+        </div>
+
+        <!-- ====== SUBJECT SCREEN (قائمة الدروس) ====== -->
+        <div id="screen-subject" class="screen">
+            <header class="app-header">
+                <button class="header-btn back-btn" data-back>←</button>
+                <h1 class="header-title" id="subject-title"></h1>
+            </header>
+            <div class="screen-content">
+                <div class="lessons-list" id="lessons-list"></div>
+            </div>
+        </div>
+
+        <!-- ====== IMAGE VIEWER SCREEN ====== -->
+        <div id="screen-viewer" class="screen">
+            <header class="app-header viewer-header">
+                <button class="header-btn back-btn" data-back>←</button>
+                <h1 class="header-title" id="viewer-title"></h1>
+                <span class="image-counter" id="image-counter"></span>
+            </header>
+            <div class="viewer-container" id="viewer-container">
+                <!-- Images will be loaded here -->
+            </div>
+            <!-- Watermark overlay -->
+            <div class="watermark-overlay" id="watermark-overlay"></div>
+        </div>
+
+        <!-- ====== MODELS DETAIL SCREEN (نماذج مادة معينة بالسنوات) ====== -->
+        <div id="screen-model-detail" class="screen">
+            <header class="app-header">
+                <button class="header-btn back-btn" data-back>←</button>
+                <h1 class="header-title" id="model-detail-title"></h1>
+            </header>
+            <div class="screen-content">
+                <div class="lessons-list" id="model-years-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== CHATBOT FAB ====== -->
+    <button id="chat-fab" class="chat-fab hidden" title="المساعد الذكي">
+        <span class="fab-icon">🎓</span>
+    </button>
+
+    <!-- ====== CHATBOT WINDOW ====== -->
+    <div id="chat-window" class="chat-window hidden">
+        <div class="chat-header glass-card">
+            <div class="chat-header-info">
+                <span class="chat-avatar">🎓</span>
+                <div>
+                    <h3>بوت عمرو كريم</h3>
+                    <span class="chat-status">متصل</span>
+                </div>
+            </div>
+            <button id="chat-close" class="chat-close-btn">✕</button>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <div class="chat-message bot">
+                <div class="message-bubble">مرحباً! أنا بوت عمرو كريم 🎓 كيف أقدر أساعدك اليوم؟</div>
+            </div>
+        </div>
+        <form class="chat-input-area" id="chat-form">
+            <input type="text" id="chat-input" placeholder="اكتب رسالتك..." autocomplete="off">
+            <button type="submit" class="chat-send-btn">➤</button>
+        </form>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/content.js?v=8"></script>
+    <script src="js/auth.js?v=8"></script>
+    <script src="js/chatbot.js?v=8"></script>
+    <script src="js/app.js?v=8"></script>
+
+    <!-- Register Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('SW registered:', reg.scope))
+                    .catch(err => console.log('SW registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>
