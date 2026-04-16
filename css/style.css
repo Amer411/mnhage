@@ -1230,7 +1230,23 @@ body {
 /* Image preview in chat */
 .chat-img-preview {
     max-width: 100%;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    margin-top: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    transition: var(--transition);
+    display: block;
 }
+
+.chat-img-preview:hover {
+    transform: scale(1.02);
+    border-color: var(--accent-purple);
+}
+
+/* Ensure install banner content remains centered and clear */
+#android-install-ui p, #ios-install-ui p {
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
