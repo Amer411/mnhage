@@ -127,13 +127,14 @@
             <header class="app-header viewer-header">
                 <button class="header-btn back-btn" data-back>←</button>
                 <h1 class="header-title" id="viewer-title"></h1>
+
                 <span class="image-counter" id="image-counter"></span>
             </header>
             <div class="viewer-container" id="viewer-container">
                 <!-- Images will be loaded here -->
             </div>
             <!-- Watermark overlay -->
-            <div class="watermark-overlay" id="watermark-overlay"></div>
+            <div class="watermark-overlay" id="watermark-overlay" data-html2canvas-ignore="true"></div>
         </div>
 
         <!-- ====== MODELS DETAIL SCREEN (نماذج مادة معينة بالسنوات) ====== -->
@@ -149,12 +150,12 @@
     </div>
 
     <!-- ====== CHATBOT FAB ====== -->
-    <button id="chat-fab" class="chat-fab hidden" title="المساعد الذكي">
+    <button id="chat-fab" class="chat-fab hidden" title="المساعد الذكي" data-html2canvas-ignore="true">
         <span class="fab-icon">🎓</span>
     </button>
 
     <!-- ====== CHATBOT WINDOW ====== -->
-    <div id="chat-window" class="chat-window hidden">
+    <div id="chat-window" class="chat-window hidden" data-html2canvas-ignore="true">
         <div class="chat-header glass-card">
             <div class="chat-header-info">
                 <span class="chat-avatar">🎓</span>
@@ -225,10 +226,10 @@
     </div>
 
     <!-- Scripts -->
-    <script src="js/content.js?v=18"></script>
-    <script src="js/auth.js?v=18"></script>
-    <script src="js/chatbot.js?v=18"></script>
-    <script src="js/app.js?v=18"></script>
+    <script src="js/content.js?v=20"></script>
+    <script src="js/auth.js?v=20"></script>
+    <script src="js/chatbot.js?v=20"></script>
+    <script src="js/app.js?v=20"></script>
 
     <!-- Register Service Worker -->
     <script>
