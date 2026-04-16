@@ -14,12 +14,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=11">
+    <link rel="stylesheet" href="css/style.css?v=21">
 </head>
 
 <body>
     <!-- Animated Background -->
-    <div class="bg-animation">
+    <div class="bg-animation" data-html2canvas-ignore="true">
         <div class="bg-orb bg-orb-1"></div>
         <div class="bg-orb bg-orb-2"></div>
         <div class="bg-orb bg-orb-3"></div>
@@ -191,11 +191,11 @@
     </div>
 
     <!-- ====== SCREEN CAPTURE OVERLAY ====== -->
-    <div id="capture-overlay" class="capture-overlay hidden">
-        <video id="capture-video" autoplay playsinline muted style="display: none;"></video>
-        <canvas id="capture-canvas" style="display: none;"></canvas>
-        <div id="selection-box" class="selection-box hidden"></div>
-        <div class="capture-controls">
+    <div id="capture-overlay" class="capture-overlay hidden" data-html2canvas-ignore="true">
+        <video id="capture-video" autoplay playsinline muted style="display: none;" data-html2canvas-ignore="true"></video>
+        <canvas id="capture-canvas" style="display: none;" data-html2canvas-ignore="true"></canvas>
+        <div id="selection-box" class="selection-box hidden" data-html2canvas-ignore="true"></div>
+        <div class="capture-controls" data-html2canvas-ignore="true">
             <p>قم بسحب الفأرة على الشاشة لتحديد الجزء المطلوب</p>
             <button type="button" id="cancel-capture-btn" class="base-btn">إلغاء</button>
         </div>
@@ -226,10 +226,10 @@
     </div>
 
     <!-- Scripts -->
-    <script src="js/content.js?v=20"></script>
-    <script src="js/auth.js?v=20"></script>
-    <script src="js/chatbot.js?v=20"></script>
-    <script src="js/app.js?v=20"></script>
+    <script src="js/content.js?v=21"></script>
+    <script src="js/auth.js?v=21"></script>
+    <script src="js/chatbot.js?v=21"></script>
+    <script src="js/app.js?v=21"></script>
 
     <!-- Register Service Worker -->
     <script>
