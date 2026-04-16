@@ -111,7 +111,18 @@ const Chatbot = (() => {
         }).catch(err => {
             hideTyping();
             console.error('Chatbot error:', err);
-            addMessage('خطأ في الاتصال: تأكد من جودة الإنترنت وحاول مجدداً.', 'bot');
+            // Show the actual error reason to user
+            let errorMsg = 'خطأ: ';
+            if (err.message?.includes('مهلة')) {
+                errorMsg += 'انتهت مهلة الاتصال. حاول مجدداً.';
+            } else if (err.message?.includes('429')) {
+                errorMsg += 'تم تجاوز عدد الطلبات المسموحة. انتظر دقيقة ثم حاول مجدداً.';
+            } else if (err.message?.includes('403')) {
+                errorMsg += 'مفتاح API غير صالح أو معطل.';
+            } else {
+                errorMsg += err.message || 'خطأ غير معروف. تأكد من الإنترنت.';
+            }
+            addMessage(errorMsg, 'bot');
         }).finally(() => {
             if (sendBtn) sendBtn.disabled = false;
         });
@@ -444,7 +455,7 @@ const Chatbot = (() => {
                     console.error(`Attempt ${i + 1} failed:`, response.status, errorBody);
                     lastError = new Error(`خطأ في الخادم: ${response.status}`);
                     if (i < retries - 1) {
-                        await delay(1500); // 1.5s delay like native app
+                        await delay(3000); // 3s delay to avoid rate limits
                     }
                     continue;
                 }
@@ -477,7 +488,7 @@ const Chatbot = (() => {
                 }
                 console.error(`Attempt ${i + 1} error:`, err);
                 if (i < retries - 1) {
-                    await delay(1500);
+                    await delay(3000); // 3s delay between retries
                 }
             }
         }
