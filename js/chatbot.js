@@ -206,7 +206,13 @@ const Chatbot = (() => {
             const canvas = await html2canvas(document.body, {
                 useCORS: true,
                 allowTaint: true,
-                backgroundColor: '#0f172a'
+                backgroundColor: '#0f172a',
+                width: window.innerWidth,
+                height: window.innerHeight,
+                windowWidth: window.innerWidth,
+                windowHeight: window.innerHeight,
+                x: window.scrollX,
+                y: window.scrollY
             });
             
             // Show overlay
@@ -218,11 +224,11 @@ const Chatbot = (() => {
             targetCanvas.width = canvas.width;
             targetCanvas.height = canvas.height;
             targetCanvas.style.display = 'block';
-            targetCanvas.style.position = 'absolute';
+            targetCanvas.style.position = 'fixed';
             targetCanvas.style.top = '0';
             targetCanvas.style.left = '0';
-            targetCanvas.style.width = '100VW';
-            targetCanvas.style.height = '100VH';
+            targetCanvas.style.width = '100vw';
+            targetCanvas.style.height = '100vh';
             targetCanvas.style.zIndex = '-1'; // Behind selection box
             
             // Save full canvas to a variable so we can crop from it on mouseup
