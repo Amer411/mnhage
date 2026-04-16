@@ -162,8 +162,13 @@ const Chatbot = (() => {
     // ===== CAPTURE LOGIC =====
     async function startCapture() {
         try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                fallbackCapture();
+                return;
+            }
             stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
             const video = document.getElementById('capture-video');
+            video.style.display = 'block'; // Ensure video is shown to canvas
             video.srcObject = stream;
             
             document.getElementById('capture-overlay').classList.remove('hidden');
@@ -172,6 +177,58 @@ const Chatbot = (() => {
             toggleChat(false); // Hide chat so user sees screen
         } catch (err) {
             console.error("لم يتم تصريح الشاشة:", err);
+            // Fallback if user cancels or gets error on PC
+            if (err.name === 'NotAllowedError') {
+                return; // User cancelled
+            }
+            fallbackCapture();
+        }
+    }
+
+    async function fallbackCapture() {
+        // Load html2canvas dynamically
+        if (!window.html2canvas) {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            document.head.appendChild(script);
+            
+            // Wait for it to load
+            await new Promise(r => script.onload = r);
+        }
+        
+        toggleChat(false);
+        // Add a slight delay for chat window to close smoothly
+        await new Promise(r => setTimeout(r, 300));
+        
+        try {
+            const canvas = await html2canvas(document.body, {
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#0f172a'
+            });
+            
+            // Show overlay
+            document.getElementById('capture-overlay').classList.remove('hidden');
+            
+            // We use the video's hidden status, and draw html2canvas to capture-canvas
+            const targetCanvas = document.getElementById('capture-canvas');
+            const ctx = targetCanvas.getContext('2d');
+            targetCanvas.width = canvas.width;
+            targetCanvas.height = canvas.height;
+            targetCanvas.style.display = 'block';
+            targetCanvas.style.position = 'absolute';
+            targetCanvas.style.top = '0';
+            targetCanvas.style.left = '0';
+            targetCanvas.style.width = '100VW';
+            targetCanvas.style.height = '100VH';
+            targetCanvas.style.zIndex = '-1'; // Behind selection box
+            
+            // Save full canvas to a variable so we can crop from it on mouseup
+            window.lastFallbackCanvas = canvas;
+            
+        } catch (err) {
+            console.error("Fallbak capture failed:", err);
+            alert("حدث خطأ أثناء التقاط الشاشة: " + err.message);
         }
     }
 
@@ -180,6 +237,16 @@ const Chatbot = (() => {
             stream.getTracks().forEach(t => t.stop());
             stream = null;
         }
+        
+        const video = document.getElementById('capture-video');
+        if (video) video.style.display = 'none';
+        
+        const canvas = document.getElementById('capture-canvas');
+        if (canvas) {
+            canvas.style.display = 'none';
+        }
+        window.lastFallbackCanvas = null;
+        
         document.getElementById('capture-overlay').classList.add('hidden');
         document.getElementById('selection-box').classList.add('hidden');
     }
@@ -237,24 +304,45 @@ const Chatbot = (() => {
 
     function cropAndSave(rect) {
         const video = document.getElementById('capture-video');
-        const canvas = document.getElementById('capture-canvas');
-        const ctx = canvas.getContext('2d');
         
-        const scaleX = video.videoWidth / window.innerWidth;
-        const scaleY = video.videoHeight / window.innerHeight;
+        // Use a temporary canvas to output the cropped region
+        const outCanvas = document.createElement('canvas');
+        const ctx = outCanvas.getContext('2d');
         
-        canvas.width = rect.width * scaleX;
-        canvas.height = rect.height * scaleY;
+        if (window.lastFallbackCanvas) {
+            // Handle fallback mode
+            const srcCanvas = window.lastFallbackCanvas;
+            const scaleX = srcCanvas.width / window.innerWidth;
+            const scaleY = srcCanvas.height / window.innerHeight;
+            
+            outCanvas.width = rect.width * scaleX;
+            outCanvas.height = rect.height * scaleY;
+            
+            ctx.drawImage(
+                srcCanvas,
+                rect.left * scaleX, rect.top * scaleY, 
+                rect.width * scaleX, rect.height * scaleY,
+                0, 0, 
+                outCanvas.width, outCanvas.height
+            );
+        } else {
+            // Handle PC video stream Mode
+            const scaleX = video.videoWidth / window.innerWidth;
+            const scaleY = video.videoHeight / window.innerHeight;
+            
+            outCanvas.width = rect.width * scaleX;
+            outCanvas.height = rect.height * scaleY;
+            
+            ctx.drawImage(
+                video,
+                rect.left * scaleX, rect.top * scaleY, 
+                rect.width * scaleX, rect.height * scaleY,
+                0, 0, 
+                outCanvas.width, outCanvas.height
+            );
+        }
         
-        ctx.drawImage(
-            video,
-            rect.left * scaleX, rect.top * scaleY, 
-            rect.width * scaleX, rect.height * scaleY,
-            0, 0, 
-            canvas.width, canvas.height
-        );
-        
-        pendingImageBase64 = canvas.toDataURL('image/jpeg', 0.8);
+        pendingImageBase64 = outCanvas.toDataURL('image/jpeg', 0.8);
         
         toggleChat(true);
         const container = document.getElementById('chat-messages');
