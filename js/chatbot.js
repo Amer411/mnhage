@@ -92,7 +92,20 @@ const Chatbot = (() => {
 
         const div = document.createElement('div');
         div.className = `chat-message ${sender}`;
-        div.innerHTML = `<div class="message-bubble">${escapeHtml(text)}</div>`;
+        
+        // Detect image URLs
+        const imgRegex = /(https?:\/\/[^\s]+?\.(?:jpg|jpeg|png|gif|webp))/gi;
+        const matches = text.match(imgRegex);
+        
+        let contentHtml = escapeHtml(text);
+        
+        if (matches) {
+            matches.forEach(url => {
+                contentHtml += `<br><img src="${url}" class="chat-img-preview" alt="Preview" onclick="window.open('${url}', '_blank')">`;
+            });
+        }
+
+        div.innerHTML = `<div class="message-bubble">${contentHtml}</div>`;
         container.appendChild(div);
         scrollToBottom();
     }

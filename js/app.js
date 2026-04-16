@@ -549,43 +549,77 @@ const App = (() => {
         });
     }
 
-    // ===== iOS Install Prompt =====
-    function checkIOSInstallPrompt() {
-        // Check if iOS
+    // ===== PWA Install Prompts (Android & iOS) =====
+    let deferredPrompt;
+
+    function setupInstallPrompts() {
+        const banner = document.getElementById('pwa-install-banner');
+        const androidUI = document.getElementById('android-install-ui');
+        const iosUI = document.getElementById('ios-install-ui');
+        const closeBtn = document.getElementById('pwa-banner-close');
+        const installBtn = document.getElementById('android-install-btn');
+
+        if (!banner) return;
+
+        // 1. Handle Android/Chrome (beforeinstallprompt)
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            
+            // Show banner if not dismissed and not in standalone
+            if (!localStorage.getItem('pwa_install_dismissed') && !isStandalone()) {
+                setTimeout(() => {
+                    banner.classList.remove('hidden');
+                    androidUI?.classList.remove('hidden');
+                    iosUI?.classList.add('hidden');
+                }, 3000);
+            }
+        });
+
+        // 2. Handle iOS (Manual check)
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         
-        // Check if already in standalone mode (installed as PWA)
-        const isStandalone = window.navigator.standalone === true || 
-                             window.matchMedia('(display-mode: standalone)').matches;
-        
-        // Check if user previously dismissed
-        const dismissed = localStorage.getItem('ios_install_dismissed');
-        
-        if (isIOS && !isStandalone && !dismissed) {
-            // Show banner after a short delay
+        if (isIOS && !isStandalone() && !localStorage.getItem('pwa_install_dismissed')) {
             setTimeout(() => {
-                const banner = document.getElementById('ios-install-banner');
-                if (banner) {
-                    banner.classList.remove('hidden');
-                }
-            }, 2000);
-            
-            // Close button handler
-            document.getElementById('ios-banner-close')?.addEventListener('click', () => {
-                const banner = document.getElementById('ios-install-banner');
-                if (banner) {
-                    banner.classList.add('hidden');
-                    localStorage.setItem('ios_install_dismissed', 'true');
-                }
-            });
+                banner.classList.remove('hidden');
+                iosUI?.classList.remove('hidden');
+                androidUI?.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Install button click (Android)
+        installBtn?.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            // Show the prompt
+            deferredPrompt.prompt();
+            // Wait for the user to respond to the prompt
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            // We've used the prompt, and can't use it again, throw it away
+            deferredPrompt = null;
+            banner.classList.add('hidden');
+        });
+
+        // Close button handler
+        closeBtn?.addEventListener('click', () => {
+            banner.classList.add('hidden');
+            localStorage.setItem('pwa_install_dismissed', 'true');
+        });
+
+        // Helper to check if app is already installed
+        function isStandalone() {
+            return window.navigator.standalone === true || 
+                   window.matchMedia('(display-mode: standalone)').matches;
         }
     }
 
     // Start app
     document.addEventListener('DOMContentLoaded', () => {
         init();
-        checkIOSInstallPrompt();
+        setupInstallPrompts();
     });
 
     return { navigate, goBack };
