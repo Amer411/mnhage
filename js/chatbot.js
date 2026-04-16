@@ -281,24 +281,31 @@ const Chatbot = (() => {
         
         if (rect.width > 20 && rect.height > 20) {
             if (window.isFallbackMode) {
-                // Must hide overlay FIRST so it doesn't obscure the screenshot
+                // Save rect values before hiding (getBoundingClientRect may change)
+                const savedRect = {
+                    left: rect.left,
+                    top: rect.top,
+                    width: rect.width,
+                    height: rect.height
+                };
+                
+                // Hide overlay, selection box, chat, and watermark BEFORE capture
                 document.getElementById('capture-overlay').classList.add('hidden');
                 document.getElementById('selection-box').classList.add('hidden');
-                
-                // Also hide the chat and watermark temporarily just to be safe
                 document.getElementById('chat-window')?.classList.add('hidden');
+                document.getElementById('chat-fab')?.style.setProperty('display', 'none');
                 document.querySelectorAll('.watermark-overlay').forEach(el => el.style.opacity = '0');
                 
-                // Show thinking indicator in chat
-                document.getElementById('chat-fab')?.classList.remove('hidden'); // Ensure we can reopen chat
+                // Small delay to let DOM repaint without those elements
+                await new Promise(r => setTimeout(r, 150));
                 
-                await executeFallbackCrop(rect);
+                await executeFallbackCrop(savedRect);
                 
                 // Restore visibility
                 document.querySelectorAll('.watermark-overlay').forEach(el => el.style.opacity = '1');
-                document.getElementById('chat-window')?.classList.remove('hidden');
+                document.getElementById('chat-fab')?.style.removeProperty('display');
                 
-                return; // stopCapture is handled
+                return;
             } else {
                 cropAndSave(rect);
             }
@@ -324,27 +331,34 @@ const Chatbot = (() => {
                 windowHeight: window.innerHeight,
                 x: window.scrollX + rect.left,
                 y: window.scrollY + rect.top,
-                scrollX: 0, // Prevent html2canvas from adding extra scroll offsets
+                scrollX: 0,
                 scrollY: 0
             });
             
-            pendingImageBase64 = canvas.toDataURL('image/jpeg', 0.8);
+            // Reduce image size to prevent API timeout
+            pendingImageBase64 = canvas.toDataURL('image/jpeg', 0.6);
+            console.log('Captured image size (chars):', pendingImageBase64.length);
             
             // Show attachment preview in UI
             const previewContainer = document.getElementById('chat-attachment-preview');
             const previewImg = document.getElementById('chat-attachment-img');
+            console.log('Preview elements:', previewContainer, previewImg);
             if (previewContainer && previewImg) {
                 previewImg.src = pendingImageBase64;
                 previewContainer.classList.remove('hidden');
+                console.log('Preview shown successfully');
+            } else {
+                console.error('Preview elements not found!');
             }
             
+            // Show chat window with the preview
             toggleChat(true);
             const input = document.getElementById('chat-input');
             if (input) input.focus();
             
         } catch (err) {
             console.error("Fallback crop error:", err);
-            alert("تعذر التقاط الصورة.");
+            alert("تعذر التقاط الصورة: " + err.message);
         } finally {
             window.isFallbackMode = false;
         }
@@ -404,7 +418,7 @@ const Chatbot = (() => {
                 const url = `${BASE_URL}models/gemini-2.5-flash-lite:generateContent?key=${API_KEY}`;
                 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout like native app
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout for image payloads
                 
                 let requestParts = [{ text: text }];
                 if (base64Image) {
