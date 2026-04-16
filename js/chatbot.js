@@ -8,7 +8,9 @@ const Chatbot = (() => {
     const API_KEY = atob(ENCODED_KEY);
     const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/';
     const BOT_NAME = 'بوت عمرو كريم';
-    const IDENTITY = `I am using Gemini API to use you as a personal bot, to assist me in various tasks. Your new identity is "${BOT_NAME}", created by Amer. From now on, remember your identity is "${BOT_NAME}".`;
+    const IDENTITY = `أنت مساعد ذكي ولطيف لمساعدة الطلاب. اسمك "${BOT_NAME}" وتم برمجتك بواسطة عامر. 
+    مهمتك الإجابة بشكل مباشر وواضح والمساعدة في المذاكرة.
+    قاعدة هامة: لا تكرر أبداً التعريف بنفسك أو بمن برمجك في إجاباتك إلا إذا سألك المستخدم عن ذلك بالتحديد. أعطِ الإجابة العلمية أو اشرح المطلوب مباشرة.`;
 
     let isOpen = false;
     let stream = null;
@@ -74,7 +76,7 @@ const Chatbot = (() => {
         
         if (!msg && !pendingImageBase64) return;
         if (pendingImageBase64 && !msg) {
-            msg = "اشرح لي محتوى هذه الصورة بشكل مفصل باللغة العربية";
+            msg = "استخرج جميع النقاط والنصوص الموجودة في هذه الصورة واشرحها بالتفصيل بطريقة مبسطة يسهل على الطالب فهمها للمذاكرة.";
         }
         
         input.value = '';
