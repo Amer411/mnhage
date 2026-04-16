@@ -24,6 +24,7 @@ const Chatbot = (() => {
         const form = document.getElementById('chat-form');
         const captureBtn = document.getElementById('chat-capture-btn');
         const cancelCaptureBtn = document.getElementById('cancel-capture-btn');
+        const removeAttachmentBtn = document.getElementById('chat-attachment-remove');
         const overlay = document.getElementById('capture-overlay');
 
         fab?.addEventListener('click', toggleChat);
@@ -32,6 +33,7 @@ const Chatbot = (() => {
         
         captureBtn?.addEventListener('click', startCapture);
         cancelCaptureBtn?.addEventListener('click', stopCapture);
+        removeAttachmentBtn?.addEventListener('click', removeAttachment);
         
         if (overlay) {
             overlay.addEventListener('mousedown', onMouseDown);
@@ -82,6 +84,8 @@ const Chatbot = (() => {
         input.value = '';
         if (sendBtn) sendBtn.disabled = true;
         
+        removeAttachment(); // visually clear the attachment
+        
         const container = document.getElementById('chat-messages');
         if (container) {
             container.innerHTML = '';
@@ -95,6 +99,9 @@ const Chatbot = (() => {
         } else {
             addMessage(msg, 'user');
         }
+        
+        // Ensure pendingImageBase64 is cleared out
+        pendingImageBase64 = null;
         
         scrollToBottom();
         showTyping();
@@ -159,6 +166,14 @@ const Chatbot = (() => {
     // Helper: delay function
     function delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function removeAttachment() {
+        pendingImageBase64 = null;
+        const previewEl = document.getElementById('chat-attachment-preview');
+        const previewImg = document.getElementById('chat-attachment-img');
+        if (previewEl) previewEl.classList.add('hidden');
+        if (previewImg) previewImg.src = '';
     }
 
     // ===== CAPTURE LOGIC =====
@@ -290,41 +305,33 @@ const Chatbot = (() => {
                 await new Promise(r => setTimeout(r, 100));
             }
             
+            // Capture Exactly the drawn rectangle to ensure perfect alignment without manual offset scaling
             const canvas = await html2canvas(document.body, {
                 useCORS: true,
                 allowTaint: true,
                 backgroundColor: '#0f172a',
-                width: window.innerWidth,
-                height: window.innerHeight,
+                width: rect.width,
+                height: rect.height,
                 windowWidth: window.innerWidth,
                 windowHeight: window.innerHeight,
-                x: window.scrollX,
-                y: window.scrollY
+                x: window.scrollX + rect.left,
+                y: window.scrollY + rect.top
             });
             
-            // outCanvas is what we send to Gemini
-            const scaleX = canvas.width / window.innerWidth;
-            const scaleY = canvas.height / window.innerHeight;
-            
-            const outCanvas = document.createElement('canvas');
-            outCanvas.width = rect.width * scaleX;
-            outCanvas.height = rect.height * scaleY;
-            const ctx = outCanvas.getContext('2d');
-            
-            ctx.drawImage(
-                canvas,
-                rect.left * scaleX, rect.top * scaleY,
-                rect.width * scaleX, rect.height * scaleY,
-                0, 0,
-                outCanvas.width, outCanvas.height
-            );
-            
-            pendingImageBase64 = outCanvas.toDataURL('image/jpeg', 0.8);
+            pendingImageBase64 = canvas.toDataURL('image/jpeg', 0.8);
             
             // Remove the temporary "processing" message
             const container = document.getElementById('chat-messages');
-            if (container && container.lastChild) {
+            if (container && container.lastChild && container.lastChild.innerText?.includes('جاري التقاط')) {
                 container.lastChild.remove();
+            }
+            
+            // Show attachment preview in UI
+            const previewContainer = document.getElementById('chat-attachment-preview');
+            const previewImg = document.getElementById('chat-attachment-img');
+            if (previewContainer && previewImg) {
+                previewImg.src = pendingImageBase64;
+                previewContainer.classList.remove('hidden');
             }
             
             toggleChat(true);
@@ -362,6 +369,14 @@ const Chatbot = (() => {
         );
         
         pendingImageBase64 = outCanvas.toDataURL('image/jpeg', 0.8);
+        
+        // Show attachment preview in UI
+        const previewContainer = document.getElementById('chat-attachment-preview');
+        const previewImg = document.getElementById('chat-attachment-img');
+        if (previewContainer && previewImg) {
+            previewImg.src = pendingImageBase64;
+            previewContainer.classList.remove('hidden');
+        }
         
         toggleChat(true);
         const container = document.getElementById('chat-messages');
