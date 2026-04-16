@@ -90,7 +90,7 @@ const Chatbot = (() => {
         
         const container = document.getElementById('chat-messages');
         if (container) {
-            container.innerHTML = '';
+            // Do NOT clear innerHTML. We want to preserve history.
         }
         
         if (imageToSend) {
@@ -111,7 +111,7 @@ const Chatbot = (() => {
         }).catch(err => {
             hideTyping();
             console.error('Chatbot error:', err);
-            addMessage('خطأ في الاتصال: ' + (err.message || 'خطأ غير معروف'), 'bot');
+            addMessage('خطأ في الاتصال: تأكد من جودة الإنترنت وحاول مجدداً.', 'bot');
         }).finally(() => {
             if (sendBtn) sendBtn.disabled = false;
         });
@@ -281,15 +281,23 @@ const Chatbot = (() => {
         
         if (rect.width > 20 && rect.height > 20) {
             if (window.isFallbackMode) {
-                // Must hide overlay FIRST before capturing so it doesn't obscure the screenshot
+                // Must hide overlay FIRST so it doesn't obscure the screenshot
                 document.getElementById('capture-overlay').classList.add('hidden');
                 document.getElementById('selection-box').classList.add('hidden');
                 
+                // Also hide the chat and watermark temporarily just to be safe
+                document.getElementById('chat-window')?.classList.add('hidden');
+                document.querySelectorAll('.watermark-overlay').forEach(el => el.style.opacity = '0');
+                
                 // Show thinking indicator in chat
-                toggleChat(true);
-                addMessage("جاري التقاط ومعالجة الصورة...", "bot");
+                document.getElementById('chat-fab')?.classList.remove('hidden'); // Ensure we can reopen chat
                 
                 await executeFallbackCrop(rect);
+                
+                // Restore visibility
+                document.querySelectorAll('.watermark-overlay').forEach(el => el.style.opacity = '1');
+                document.getElementById('chat-window')?.classList.remove('hidden');
+                
                 return; // stopCapture is handled
             } else {
                 cropAndSave(rect);
@@ -305,7 +313,7 @@ const Chatbot = (() => {
                 await new Promise(r => setTimeout(r, 100));
             }
             
-            // Capture Exactly the drawn rectangle to ensure perfect alignment without manual offset scaling
+            // Capture Exactly the drawn rectangle
             const canvas = await html2canvas(document.body, {
                 useCORS: true,
                 allowTaint: true,
@@ -315,16 +323,12 @@ const Chatbot = (() => {
                 windowWidth: window.innerWidth,
                 windowHeight: window.innerHeight,
                 x: window.scrollX + rect.left,
-                y: window.scrollY + rect.top
+                y: window.scrollY + rect.top,
+                scrollX: 0, // Prevent html2canvas from adding extra scroll offsets
+                scrollY: 0
             });
             
             pendingImageBase64 = canvas.toDataURL('image/jpeg', 0.8);
-            
-            // Remove the temporary "processing" message
-            const container = document.getElementById('chat-messages');
-            if (container && container.lastChild && container.lastChild.innerText?.includes('جاري التقاط')) {
-                container.lastChild.remove();
-            }
             
             // Show attachment preview in UI
             const previewContainer = document.getElementById('chat-attachment-preview');
@@ -432,15 +436,24 @@ const Chatbot = (() => {
                 }
                 
                 const result = await response.json();
+                console.log("Gemini API Result:", result);
                 
                 if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
                     let generatedText = result.candidates[0].content.parts[0].text.trim();
-                    // Remove asterisks like native app
                     generatedText = generatedText.replace(/\*/g, '');
                     return generatedText;
                 }
                 
-                return 'عذراً، لم أستطع توليد رد في الوقت الحالي.';
+                // Detailed error for safety or other flags
+                if (result.promptFeedback?.blockReason) {
+                    return `عذراً، تم حظر السؤال بسبب سياسة المحتوى: ${result.promptFeedback.blockReason}`;
+                }
+                
+                if (result.candidates?.[0]?.finishReason === "SAFETY") {
+                    return "عذراً، لا يمكنني شرح هذا المحتوى لتعارضه مع سياسات الأمان.";
+                }
+
+                return 'عذراً، لم أستطع فهم الصورة أو توليد رد في الوقت الحالي. حاول تصحيح التحديد.';
                 
             } catch (err) {
                 if (err.name === 'AbortError') {
