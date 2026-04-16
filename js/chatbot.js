@@ -188,56 +188,21 @@ const Chatbot = (() => {
     }
 
     async function fallbackCapture() {
-        // Load html2canvas dynamically
+        // Load html2canvas dynamically if not available
         if (!window.html2canvas) {
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
             document.head.appendChild(script);
-            
-            // Wait for it to load
-            await new Promise(r => script.onload = r);
+            // We do NOT await here. It will load in the background while the user draws
         }
         
         toggleChat(false);
         // Add a slight delay for chat window to close smoothly
         await new Promise(r => setTimeout(r, 300));
         
-        try {
-            const canvas = await html2canvas(document.body, {
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#0f172a',
-                width: window.innerWidth,
-                height: window.innerHeight,
-                windowWidth: window.innerWidth,
-                windowHeight: window.innerHeight,
-                x: window.scrollX,
-                y: window.scrollY
-            });
-            
-            // Show overlay
-            document.getElementById('capture-overlay').classList.remove('hidden');
-            
-            // We use the video's hidden status, and draw html2canvas to capture-canvas
-            const targetCanvas = document.getElementById('capture-canvas');
-            const ctx = targetCanvas.getContext('2d');
-            targetCanvas.width = canvas.width;
-            targetCanvas.height = canvas.height;
-            targetCanvas.style.display = 'block';
-            targetCanvas.style.position = 'fixed';
-            targetCanvas.style.top = '0';
-            targetCanvas.style.left = '0';
-            targetCanvas.style.width = '100vw';
-            targetCanvas.style.height = '100vh';
-            targetCanvas.style.zIndex = '-1'; // Behind selection box
-            
-            // Save full canvas to a variable so we can crop from it on mouseup
-            window.lastFallbackCanvas = canvas;
-            
-        } catch (err) {
-            console.error("Fallbak capture failed:", err);
-            alert("حدث خطأ أثناء التقاط الشاشة: " + err.message);
-        }
+        // Immediately show overlay without capture delay
+        document.getElementById('capture-overlay').classList.remove('hidden');
+        window.isFallbackMode = true; // Flag to indicate we are not using video stream
     }
 
     function stopCapture() {
@@ -246,14 +211,9 @@ const Chatbot = (() => {
             stream = null;
         }
         
+        window.isFallbackMode = false;
         const video = document.getElementById('capture-video');
         if (video) video.style.display = 'none';
-        
-        const canvas = document.getElementById('capture-canvas');
-        if (canvas) {
-            canvas.style.display = 'none';
-        }
-        window.lastFallbackCanvas = null;
         
         document.getElementById('capture-overlay').classList.add('hidden');
         document.getElementById('selection-box').classList.add('hidden');
@@ -305,9 +265,78 @@ const Chatbot = (() => {
         const rect = box.getBoundingClientRect();
         
         if (rect.width > 20 && rect.height > 20) {
-            cropAndSave(rect);
+            if (window.isFallbackMode) {
+                // Must hide overlay FIRST before capturing so it doesn't obscure the screenshot
+                document.getElementById('capture-overlay').classList.add('hidden');
+                document.getElementById('selection-box').classList.add('hidden');
+                
+                // Show thinking indicator in chat
+                toggleChat(true);
+                addMessage("جاري التقاط ومعالجة الصورة...", "bot");
+                
+                await executeFallbackCrop(rect);
+                return; // stopCapture is handled
+            } else {
+                cropAndSave(rect);
+            }
         }
         stopCapture();
+    }
+    
+    async function executeFallbackCrop(rect) {
+        try {
+            // Wait for html2canvas to finish loading if it hasn't
+            while (!window.html2canvas) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+            
+            const canvas = await html2canvas(document.body, {
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#0f172a',
+                width: window.innerWidth,
+                height: window.innerHeight,
+                windowWidth: window.innerWidth,
+                windowHeight: window.innerHeight,
+                x: window.scrollX,
+                y: window.scrollY
+            });
+            
+            // outCanvas is what we send to Gemini
+            const scaleX = canvas.width / window.innerWidth;
+            const scaleY = canvas.height / window.innerHeight;
+            
+            const outCanvas = document.createElement('canvas');
+            outCanvas.width = rect.width * scaleX;
+            outCanvas.height = rect.height * scaleY;
+            const ctx = outCanvas.getContext('2d');
+            
+            ctx.drawImage(
+                canvas,
+                rect.left * scaleX, rect.top * scaleY,
+                rect.width * scaleX, rect.height * scaleY,
+                0, 0,
+                outCanvas.width, outCanvas.height
+            );
+            
+            pendingImageBase64 = outCanvas.toDataURL('image/jpeg', 0.8);
+            
+            // Remove the temporary "processing" message
+            const container = document.getElementById('chat-messages');
+            if (container && container.lastChild) {
+                container.lastChild.remove();
+            }
+            
+            toggleChat(true);
+            const input = document.getElementById('chat-input');
+            if (input) input.focus();
+            
+        } catch (err) {
+            console.error("Fallback crop error:", err);
+            alert("تعذر التقاط الصورة.");
+        } finally {
+            window.isFallbackMode = false;
+        }
     }
 
     function cropAndSave(rect) {
@@ -317,38 +346,20 @@ const Chatbot = (() => {
         const outCanvas = document.createElement('canvas');
         const ctx = outCanvas.getContext('2d');
         
-        if (window.lastFallbackCanvas) {
-            // Handle fallback mode
-            const srcCanvas = window.lastFallbackCanvas;
-            const scaleX = srcCanvas.width / window.innerWidth;
-            const scaleY = srcCanvas.height / window.innerHeight;
-            
-            outCanvas.width = rect.width * scaleX;
-            outCanvas.height = rect.height * scaleY;
-            
-            ctx.drawImage(
-                srcCanvas,
-                rect.left * scaleX, rect.top * scaleY, 
-                rect.width * scaleX, rect.height * scaleY,
-                0, 0, 
-                outCanvas.width, outCanvas.height
-            );
-        } else {
-            // Handle PC video stream Mode
-            const scaleX = video.videoWidth / window.innerWidth;
-            const scaleY = video.videoHeight / window.innerHeight;
-            
-            outCanvas.width = rect.width * scaleX;
-            outCanvas.height = rect.height * scaleY;
-            
-            ctx.drawImage(
-                video,
-                rect.left * scaleX, rect.top * scaleY, 
-                rect.width * scaleX, rect.height * scaleY,
-                0, 0, 
-                outCanvas.width, outCanvas.height
-            );
-        }
+        // Handle PC video stream Mode
+        const scaleX = video.videoWidth / window.innerWidth;
+        const scaleY = video.videoHeight / window.innerHeight;
+        
+        outCanvas.width = rect.width * scaleX;
+        outCanvas.height = rect.height * scaleY;
+        
+        ctx.drawImage(
+            video,
+            rect.left * scaleX, rect.top * scaleY, 
+            rect.width * scaleX, rect.height * scaleY,
+            0, 0, 
+            outCanvas.width, outCanvas.height
+        );
         
         pendingImageBase64 = outCanvas.toDataURL('image/jpeg', 0.8);
         
