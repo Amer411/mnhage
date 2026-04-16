@@ -39,8 +39,22 @@ const Auth = (() => {
             throw new Error('أدخل كلمة المرور');
         }
 
-        // 1. Password reuse check is removed so the user can 'Add to Home Screen' and login again.
-        // The active and lock checks below will handle concurrent usage limitations.
+        // 1. Check if password was already used (one-time password like native app)
+        const usedCheckUrl = `${FIREBASE_DB}/used_passwords/${password}.json`;
+        try {
+            const usedResp = await fetch(usedCheckUrl);
+            if (usedResp.ok) {
+                const usedData = await usedResp.json();
+                if (usedData !== null) {
+                    throw new Error('كلمة المرور مستخدمة بالفعل ولا يمكن استخدامها مرة أخرى');
+                }
+            }
+        } catch (err) {
+            if (err.message === 'كلمة المرور مستخدمة بالفعل ولا يمكن استخدامها مرة أخرى') {
+                throw err;
+            }
+            // Network error, continue with login attempt
+        }
 
         // 2. Check lock
         const lockUrl = `${FIREBASE_DB}/lock/${password}.json`;
@@ -141,5 +155,27 @@ const Auth = (() => {
         } catch {}
     }
 
-    return { isLoggedIn, getUser, getUserId, login, logout };
+    async function verifyCurrentPassword() {
+        if (!isLoggedIn()) return;
+        const user = getUser();
+        if (!user || !user.user_info || !user.user_info.password) return;
+        const password = user.user_info.password;
+        
+        try {
+            const resp = await fetch(`${FIREBASE_DB}/.json`);
+            if (resp.ok) {
+                const data = await resp.json() || {};
+                const found = Object.values(data).some(v => v === password);
+                if (!found) {
+                    // Password removed from DB, log user out
+                    logout();
+                    window.location.reload();
+                }
+            }
+        } catch (e) {
+            // Network issue, do nothing
+        }
+    }
+
+    return { isLoggedIn, getUser, getUserId, login, verifyCurrentPassword };
 })();

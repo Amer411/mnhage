@@ -9,6 +9,9 @@ const App = (() => {
         // Check login status
         if (Auth.isLoggedIn()) {
             navigate('main');
+            if (Auth.verifyCurrentPassword) {
+                Auth.verifyCurrentPassword();
+            }
         } else {
             navigate('login');
         }
@@ -63,13 +66,6 @@ const App = (() => {
         // Main cards
         document.querySelectorAll('[data-navigate]').forEach(el => {
             el.addEventListener('click', () => navigate(el.dataset.navigate));
-        });
-
-        // Logout
-        document.getElementById('logout-btn')?.addEventListener('click', () => {
-            Auth.logout();
-            navigate('login');
-            history = [];
         });
     }
 
@@ -432,7 +428,8 @@ const App = (() => {
         if (!container) return;
         container.innerHTML = '';
 
-        data.urls.forEach(async (url, i) => {
+        // First: create all wrappers in order and append to container
+        const wrappers = data.urls.map((url, i) => {
             const wrapper = document.createElement('div');
             wrapper.className = 'img-loading';
             wrapper.style.position = 'relative';
@@ -454,54 +451,74 @@ const App = (() => {
             img.style.height = 'auto';
             img.style.zIndex = '1';
             img.style.position = 'relative';
+            img.draggable = false;
+
+            // Prevent long-press context menu and download
+            img.addEventListener('contextmenu', (e) => e.preventDefault());
+            img.addEventListener('dragstart', (e) => e.preventDefault());
+            img.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    e.target.style.webkitTouchCallout = 'none';
+                }
+            }, { passive: true });
 
             img.onload = () => {
                 loadingText.remove();
                 img.style.opacity = '1';
                 wrapper.style.minHeight = 'auto';
             };
-            
-            try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error('Network response was not ok');
-                
-                const contentLength = response.headers.get('content-length');
-                const total = parseInt(contentLength, 10);
-                
-                let loaded = 0;
-                const reader = response.body.getReader();
-                const chunks = [];
-                
-                while(true) {
-                    const {done, value} = await reader.read();
-                    if (done) break;
-                    
-                    chunks.push(value);
-                    loaded += value.length;
-                    
-                    if (total) {
-                        const percent = Math.round((loaded / total) * 100);
-                        loadingText.textContent = `جاري التحميل... %${percent} (صورة ${i + 1})`;
-                    }
-                }
-                
-                const blob = new Blob(chunks);
-                const blobUrl = URL.createObjectURL(blob);
-                img.src = blobUrl;
-                
-            } catch (err) {
-                console.error("Fetch failed, falling back to direct img src", err);
-                // Fallback to direct load if fetch fails (CORS or other)
-                img.src = url;
-                img.onerror = () => {
-                    loadingText.textContent = `⚠️ فشل تحميل الصورة ${i + 1}`;
-                    loadingText.style.color = '#ef4444';
-                };
-            }
 
             wrapper.appendChild(img);
             container.appendChild(wrapper);
+
+            return { wrapper, img, loadingText, url, index: i };
         });
+
+        // Second: load images asynchronously (order is preserved because wrappers are already in DOM)
+        wrappers.forEach(({ img, loadingText, url, index }) => {
+            loadImageWithProgress(img, loadingText, url, index);
+        });
+    }
+
+    // Load image with progress bar using XMLHttpRequest (works with CORS unlike fetch streaming)
+    function loadImageWithProgress(img, loadingText, url, index) {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.responseType = 'blob';
+        
+        xhr.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                loadingText.textContent = `جاري التحميل... %${percent} (صورة ${index + 1})`;
+            } else {
+                // No content-length, show loaded size
+                const kb = Math.round(e.loaded / 1024);
+                loadingText.textContent = `جاري التحميل... ${kb}KB (صورة ${index + 1})`;
+            }
+        };
+        
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                const blob = xhr.response;
+                const blobUrl = URL.createObjectURL(blob);
+                img.src = blobUrl;
+            } else {
+                // Fallback to direct src
+                img.src = url;
+            }
+        };
+        
+        xhr.onerror = () => {
+            console.warn(`XHR failed for image ${index + 1}, falling back to direct src`);
+            // Fallback: direct img.src load
+            img.src = url;
+            img.onerror = () => {
+                loadingText.textContent = `⚠️ فشل تحميل الصورة ${index + 1}`;
+                loadingText.style.color = '#ef4444';
+            };
+        };
+        
+        xhr.send();
     }
 
     // ===== Watermark =====
@@ -511,11 +528,15 @@ const App = (() => {
         overlay.innerHTML = '';
         
         const userId = Auth.getUserId();
+        // More positions for better coverage
         const positions = [
-            { x: 10, y: 15 }, { x: 55, y: 10 }, { x: 30, y: 35 },
-            { x: 70, y: 30 }, { x: 15, y: 55 }, { x: 60, y: 50 },
-            { x: 40, y: 70 }, { x: 80, y: 65 }, { x: 20, y: 85 },
-            { x: 65, y: 80 }
+            { x: 5, y: 8 }, { x: 45, y: 5 }, { x: 85, y: 12 },
+            { x: 20, y: 25 }, { x: 60, y: 22 },
+            { x: 10, y: 40 }, { x: 50, y: 38 }, { x: 80, y: 42 },
+            { x: 25, y: 55 }, { x: 65, y: 52 },
+            { x: 8, y: 68 }, { x: 48, y: 65 }, { x: 82, y: 70 },
+            { x: 30, y: 82 }, { x: 70, y: 78 },
+            { x: 15, y: 92 }, { x: 55, y: 90 }
         ];
 
         positions.forEach(pos => {
@@ -528,8 +549,44 @@ const App = (() => {
         });
     }
 
+    // ===== iOS Install Prompt =====
+    function checkIOSInstallPrompt() {
+        // Check if iOS
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        
+        // Check if already in standalone mode (installed as PWA)
+        const isStandalone = window.navigator.standalone === true || 
+                             window.matchMedia('(display-mode: standalone)').matches;
+        
+        // Check if user previously dismissed
+        const dismissed = localStorage.getItem('ios_install_dismissed');
+        
+        if (isIOS && !isStandalone && !dismissed) {
+            // Show banner after a short delay
+            setTimeout(() => {
+                const banner = document.getElementById('ios-install-banner');
+                if (banner) {
+                    banner.classList.remove('hidden');
+                }
+            }, 2000);
+            
+            // Close button handler
+            document.getElementById('ios-banner-close')?.addEventListener('click', () => {
+                const banner = document.getElementById('ios-install-banner');
+                if (banner) {
+                    banner.classList.add('hidden');
+                    localStorage.setItem('ios_install_dismissed', 'true');
+                }
+            });
+        }
+    }
+
     // Start app
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', () => {
+        init();
+        checkIOSInstallPrompt();
+    });
 
     return { navigate, goBack };
 })();
