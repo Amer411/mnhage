@@ -10,11 +10,11 @@
     <meta name="apple-mobile-web-app-title" content="المنهج الشامل">
     <title>المنهج الشامل</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="images/icon-192.png">
+    <link rel="apple-touch-icon" href="images/icon-512.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=8">
+    <link rel="stylesheet" href="css/style.css?v=11">
 </head>
 
 <body>
@@ -56,7 +56,6 @@
         <div id="screen-main" class="screen">
             <header class="app-header">
                 <h1 class="header-title">المنهج الشامل</h1>
-                <button id="logout-btn" class="header-btn" title="تسجيل الخروج">🚪</button>
             </header>
             <div class="screen-content">
                 <div class="main-grid">
@@ -168,20 +167,64 @@
         </div>
         <div class="chat-messages" id="chat-messages">
             <div class="chat-message bot">
-                <div class="message-bubble">مرحباً! أنا بوت عمرو كريم 🎓 كيف أقدر أساعدك اليوم؟</div>
+                <div class="message-bubble">مرحباً! قم بسؤالي عن أي شيء لم تفهمه بالدرس 🎓</div>
             </div>
         </div>
         <form class="chat-input-area" id="chat-form">
-            <input type="text" id="chat-input" placeholder="اكتب رسالتك..." autocomplete="off">
+            <button type="button" id="chat-capture-btn" class="chat-capture-btn" title="تحديد جزء من الشاشة">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 8V6a2 2 0 0 1 2-2h2"></path>
+                    <path d="M4 16v2a2 2 0 0 0 2 2h2"></path>
+                    <path d="M16 4h2a2 2 0 0 1 2 2v2"></path>
+                    <path d="M16 20h2a2 2 0 0 0 2-2v-2"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            </button>
+            <input type="text" id="chat-input" placeholder="اكتب هنا..." autocomplete="off">
             <button type="submit" class="chat-send-btn">➤</button>
         </form>
     </div>
 
+    <!-- ====== SCREEN CAPTURE OVERLAY ====== -->
+    <div id="capture-overlay" class="capture-overlay hidden">
+        <video id="capture-video" autoplay playsinline muted style="display: none;"></video>
+        <canvas id="capture-canvas" style="display: none;"></canvas>
+        <div id="selection-box" class="selection-box hidden"></div>
+        <div class="capture-controls">
+            <p>قم بسحب الفأرة على الشاشة لتحديد الجزء المطلوب</p>
+            <button type="button" id="cancel-capture-btn" class="base-btn">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- ====== iOS Install Banner ====== -->
+    <div id="ios-install-banner" class="ios-install-banner hidden">
+        <div class="ios-banner-content glass-card">
+            <button id="ios-banner-close" class="ios-banner-close">✕</button>
+            <div class="ios-banner-icon">📲</div>
+            <h3>تثبيت التطبيق</h3>
+            <p>لتثبيت التطبيق على جهازك:</p>
+            <div class="ios-steps">
+                <div class="ios-step">
+                    <span class="step-num">1</span>
+                    <span>اضغط على زر المشاركة <span class="share-icon">⬆️</span> في الأسفل</span>
+                </div>
+                <div class="ios-step">
+                    <span class="step-num">2</span>
+                    <span>اختر "إضافة إلى الشاشة الرئيسية" ➕</span>
+                </div>
+                <div class="ios-step">
+                    <span class="step-num">3</span>
+                    <span>اضغط "إضافة" في الأعلى</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
-    <script src="js/content.js?v=8"></script>
-    <script src="js/auth.js?v=8"></script>
-    <script src="js/chatbot.js?v=8"></script>
-    <script src="js/app.js?v=8"></script>
+    <script src="js/content.js?v=11"></script>
+    <script src="js/auth.js?v=11"></script>
+    <script src="js/chatbot.js?v=11"></script>
+    <script src="js/app.js?v=11"></script>
 
     <!-- Register Service Worker -->
     <script>

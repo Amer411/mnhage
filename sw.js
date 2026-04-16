@@ -1,7 +1,7 @@
 // ============================
 // Service Worker - Offline Support
 // ============================
-const CACHE_NAME = 'almnhaj-v8';
+const CACHE_NAME = 'almnhaj-v10';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
