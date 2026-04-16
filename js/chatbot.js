@@ -1,6 +1,6 @@
 // ============================
 // Chatbot Module - Gemini AI Integration
-// Matches native app behavior exactly
+// Text-only chat
 // ============================
 const Chatbot = (() => {
     // إخفاء المفتاح عن جيت هاب لكي لا يتم تعطيله
@@ -13,36 +13,15 @@ const Chatbot = (() => {
     قاعدة هامة: لا تكرر أبداً التعريف بنفسك أو بمن برمجك في إجاباتك إلا إذا سألك المستخدم عن ذلك بالتحديد. أعطِ الإجابة العلمية أو اشرح المطلوب مباشرة.`;
 
     let isOpen = false;
-    let stream = null;
-    let isDrawing = false;
-    let startX = 0, startY = 0;
-    let pendingImageBase64 = null;
 
     function init() {
         const fab = document.getElementById('chat-fab');
         const closeBtn = document.getElementById('chat-close');
         const form = document.getElementById('chat-form');
-        const captureBtn = document.getElementById('chat-capture-btn');
-        const cancelCaptureBtn = document.getElementById('cancel-capture-btn');
-        const removeAttachmentBtn = document.getElementById('chat-attachment-remove');
-        const overlay = document.getElementById('capture-overlay');
 
         fab?.addEventListener('click', toggleChat);
         closeBtn?.addEventListener('click', () => toggleChat(false));
         form?.addEventListener('submit', handleSubmit);
-        
-        captureBtn?.addEventListener('click', startCapture);
-        cancelCaptureBtn?.addEventListener('click', stopCapture);
-        removeAttachmentBtn?.addEventListener('click', removeAttachment);
-        
-        if (overlay) {
-            overlay.addEventListener('mousedown', onMouseDown);
-            overlay.addEventListener('mousemove', onMouseMove);
-            overlay.addEventListener('mouseup', onMouseUp);
-            overlay.addEventListener('touchstart', onMouseDown, {passive: false});
-            overlay.addEventListener('touchmove', onMouseMove, {passive: false});
-            overlay.addEventListener('touchend', onMouseUp);
-        }
     }
 
     function show() {
@@ -76,42 +55,21 @@ const Chatbot = (() => {
         const sendBtn = document.querySelector('.chat-send-btn');
         let msg = input?.value?.trim();
         
-        if (!msg && !pendingImageBase64) return;
-        if (pendingImageBase64 && !msg) {
-            msg = "استخرج جميع النقاط والنصوص الموجودة في هذه الصورة واشرحها بالتفصيل بطريقة مبسطة يسهل على الطالب فهمها للمذاكرة.";
-        }
+        if (!msg) return;
         
         input.value = '';
         if (sendBtn) sendBtn.disabled = true;
         
-        const imageToSend = pendingImageBase64;
-        hideAttachmentUI(); // visually clear the attachment without nulling data
-        pendingImageBase64 = null;
-        
-        const container = document.getElementById('chat-messages');
-        if (container) {
-            // Do NOT clear innerHTML. We want to preserve history.
-        }
-        
-        if (imageToSend) {
-            const div = document.createElement('div');
-            div.className = 'chat-message user';
-            div.innerHTML = `<div class="message-bubble"><img src="${imageToSend}" class="chat-img-preview" alt="لقطة شاشة"><br>${escapeHtml(msg)}</div>`;
-            container.appendChild(div);
-        } else {
-            addMessage(msg, 'user');
-        }
-        
+        addMessage(msg, 'user');
         scrollToBottom();
         showTyping();
         
-        sendToGemini(msg, imageToSend).then(response => {
+        sendToGemini(msg).then(response => {
             hideTyping();
             addMessage(response, 'bot');
         }).catch(err => {
             hideTyping();
             console.error('Chatbot error:', err);
-            // Show the actual error reason to user
             let errorMsg = 'خطأ: ';
             if (err.message?.includes('مهلة')) {
                 errorMsg += 'انتهت مهلة الاتصال. حاول مجدداً.';
@@ -170,257 +128,12 @@ const Chatbot = (() => {
         return div.innerHTML.replace(/\n/g, '<br>');
     }
 
-    // Helper: delay function
     function delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    function removeAttachment() {
-        pendingImageBase64 = null;
-        hideAttachmentUI();
-    }
-
-    function hideAttachmentUI() {
-        const previewEl = document.getElementById('chat-attachment-preview');
-        const previewImg = document.getElementById('chat-attachment-img');
-        if (previewEl) previewEl.classList.add('hidden');
-        if (previewImg) previewImg.src = '';
-    }
-
-    // ===== CAPTURE LOGIC =====
-    async function startCapture() {
-        try {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-                fallbackCapture();
-                return;
-            }
-            stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-            const video = document.getElementById('capture-video');
-            video.style.display = 'block'; // Ensure video is shown to canvas
-            video.srcObject = stream;
-            
-            document.getElementById('capture-overlay').classList.remove('hidden');
-            
-            stream.getVideoTracks()[0].onended = () => stopCapture(); 
-            toggleChat(false); // Hide chat so user sees screen
-        } catch (err) {
-            console.error("لم يتم تصريح الشاشة:", err);
-            // Fallback if user cancels or gets error on PC
-            if (err.name === 'NotAllowedError') {
-                return; // User cancelled
-            }
-            fallbackCapture();
-        }
-    }
-
-    async function fallbackCapture() {
-        // Load html2canvas dynamically if not available
-        if (!window.html2canvas) {
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-            document.head.appendChild(script);
-            // We do NOT await here. It will load in the background while the user draws
-        }
-        
-        toggleChat(false);
-        // Add a slight delay for chat window to close smoothly
-        await new Promise(r => setTimeout(r, 300));
-        
-        // Immediately show overlay without capture delay
-        document.getElementById('capture-overlay').classList.remove('hidden');
-        window.isFallbackMode = true; // Flag to indicate we are not using video stream
-    }
-
-    function stopCapture() {
-        if (stream) {
-            stream.getTracks().forEach(t => t.stop());
-            stream = null;
-        }
-        
-        window.isFallbackMode = false;
-        const video = document.getElementById('capture-video');
-        if (video) video.style.display = 'none';
-        
-        document.getElementById('capture-overlay').classList.add('hidden');
-        document.getElementById('selection-box').classList.add('hidden');
-    }
-
-    function getEventPos(e) {
-        if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        return { x: e.clientX, y: e.clientY };
-    }
-
-    function onMouseDown(e) {
-        if (e.target.tagName !== 'BUTTON') {
-            e.preventDefault();
-            isDrawing = true;
-            const pos = getEventPos(e);
-            startX = pos.x;
-            startY = pos.y;
-            
-            const box = document.getElementById('selection-box');
-            box.style.left = startX + 'px';
-            box.style.top = startY + 'px';
-            box.style.width = '0px';
-            box.style.height = '0px';
-            box.classList.remove('hidden');
-        }
-    }
-
-    function onMouseMove(e) {
-        if (!isDrawing) return;
-        e.preventDefault();
-        const pos = getEventPos(e);
-        const box = document.getElementById('selection-box');
-        
-        const width = Math.abs(pos.x - startX);
-        const height = Math.abs(pos.y - startY);
-        const newLeft = Math.min(pos.x, startX);
-        const newTop = Math.min(pos.y, startY);
-        
-        box.style.width = width + 'px';
-        box.style.height = height + 'px';
-        box.style.left = newLeft + 'px';
-        box.style.top = newTop + 'px';
-    }
-
-    async function onMouseUp(e) {
-        if (!isDrawing) return;
-        isDrawing = false;
-        const box = document.getElementById('selection-box');
-        const rect = box.getBoundingClientRect();
-        
-        if (rect.width > 20 && rect.height > 20) {
-            if (window.isFallbackMode) {
-                // Save rect values before hiding (getBoundingClientRect may change)
-                const savedRect = {
-                    left: rect.left,
-                    top: rect.top,
-                    width: rect.width,
-                    height: rect.height
-                };
-                
-                // Hide overlay, selection box, chat, and watermark BEFORE capture
-                document.getElementById('capture-overlay').classList.add('hidden');
-                document.getElementById('selection-box').classList.add('hidden');
-                document.getElementById('chat-window')?.classList.add('hidden');
-                document.getElementById('chat-fab')?.style.setProperty('display', 'none');
-                document.querySelectorAll('.watermark-overlay').forEach(el => el.style.opacity = '0');
-                
-                // Small delay to let DOM repaint without those elements
-                await new Promise(r => setTimeout(r, 150));
-                
-                await executeFallbackCrop(savedRect);
-                
-                // Restore visibility
-                document.querySelectorAll('.watermark-overlay').forEach(el => el.style.opacity = '1');
-                document.getElementById('chat-fab')?.style.removeProperty('display');
-                
-                return;
-            } else {
-                cropAndSave(rect);
-            }
-        }
-        stopCapture();
-    }
-    
-    async function executeFallbackCrop(rect) {
-        try {
-            // Wait for html2canvas to finish loading if it hasn't
-            while (!window.html2canvas) {
-                await new Promise(r => setTimeout(r, 100));
-            }
-            
-            // Capture Exactly the drawn rectangle
-            const canvas = await html2canvas(document.body, {
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#0f172a',
-                width: rect.width,
-                height: rect.height,
-                windowWidth: window.innerWidth,
-                windowHeight: window.innerHeight,
-                x: window.scrollX + rect.left,
-                y: window.scrollY + rect.top,
-                scrollX: 0,
-                scrollY: 0
-            });
-            
-            // Reduce image size to prevent API timeout
-            pendingImageBase64 = canvas.toDataURL('image/jpeg', 0.6);
-            console.log('Captured image size (chars):', pendingImageBase64.length);
-            
-            // Show attachment preview in UI
-            const previewContainer = document.getElementById('chat-attachment-preview');
-            const previewImg = document.getElementById('chat-attachment-img');
-            console.log('Preview elements:', previewContainer, previewImg);
-            if (previewContainer && previewImg) {
-                previewImg.src = pendingImageBase64;
-                previewContainer.classList.remove('hidden');
-                console.log('Preview shown successfully');
-            } else {
-                console.error('Preview elements not found!');
-            }
-            
-            // Show chat window with the preview
-            toggleChat(true);
-            const input = document.getElementById('chat-input');
-            if (input) input.focus();
-            
-        } catch (err) {
-            console.error("Fallback crop error:", err);
-            alert("تعذر التقاط الصورة: " + err.message);
-        } finally {
-            window.isFallbackMode = false;
-        }
-    }
-
-    function cropAndSave(rect) {
-        const video = document.getElementById('capture-video');
-        
-        // Use a temporary canvas to output the cropped region
-        const outCanvas = document.createElement('canvas');
-        const ctx = outCanvas.getContext('2d');
-        
-        // Handle PC video stream Mode
-        const scaleX = video.videoWidth / window.innerWidth;
-        const scaleY = video.videoHeight / window.innerHeight;
-        
-        outCanvas.width = rect.width * scaleX;
-        outCanvas.height = rect.height * scaleY;
-        
-        ctx.drawImage(
-            video,
-            rect.left * scaleX, rect.top * scaleY, 
-            rect.width * scaleX, rect.height * scaleY,
-            0, 0, 
-            outCanvas.width, outCanvas.height
-        );
-        
-        pendingImageBase64 = outCanvas.toDataURL('image/jpeg', 0.8);
-        
-        // Show attachment preview in UI
-        const previewContainer = document.getElementById('chat-attachment-preview');
-        const previewImg = document.getElementById('chat-attachment-img');
-        if (previewContainer && previewImg) {
-            previewImg.src = pendingImageBase64;
-            previewContainer.classList.remove('hidden');
-        }
-        
-        toggleChat(true);
-        const container = document.getElementById('chat-messages');
-        if (container) {
-            container.innerHTML = '';
-            const div = document.createElement('div');
-            div.className = 'chat-message user';
-            div.innerHTML = `<div class="message-bubble"><img src="${pendingImageBase64}" class="chat-img-preview" alt="لقطة شاشة"><div>مستعد للسؤال عن الصورة...</div></div>`;
-            container.appendChild(div);
-            scrollToBottom();
-        }
-    }
-
-    // Match native app: gemini-2.5-flash-lite, 3 retries, 10s timeout
-    async function sendToGemini(text, base64Image = null) {
+    // Gemini API: gemini-2.5-flash-lite, 3 retries, 30s timeout
+    async function sendToGemini(text) {
         const retries = 3;
         let lastError = null;
         
@@ -429,14 +142,7 @@ const Chatbot = (() => {
                 const url = `${BASE_URL}models/gemini-2.5-flash-lite:generateContent?key=${API_KEY}`;
                 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout for image payloads
-                
-                let requestParts = [{ text: text }];
-                if (base64Image) {
-                    requestParts.push({
-                        inline_data: { mime_type: "image/jpeg", data: base64Image.split(',')[1] }
-                    });
-                }
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
                 
                 const response = await fetch(url, {
                     method: 'POST',
@@ -444,7 +150,7 @@ const Chatbot = (() => {
                     signal: controller.signal,
                     body: JSON.stringify({
                         system_instruction: { parts: [{ text: IDENTITY }] },
-                        contents: [{ role: 'user', parts: requestParts }]
+                        contents: [{ role: 'user', parts: [{ text: text }] }]
                     })
                 });
 
@@ -455,7 +161,7 @@ const Chatbot = (() => {
                     console.error(`Attempt ${i + 1} failed:`, response.status, errorBody);
                     lastError = new Error(`خطأ في الخادم: ${response.status}`);
                     if (i < retries - 1) {
-                        await delay(3000); // 3s delay to avoid rate limits
+                        await delay(3000);
                     }
                     continue;
                 }
@@ -469,7 +175,6 @@ const Chatbot = (() => {
                     return generatedText;
                 }
                 
-                // Detailed error for safety or other flags
                 if (result.promptFeedback?.blockReason) {
                     return `عذراً، تم حظر السؤال بسبب سياسة المحتوى: ${result.promptFeedback.blockReason}`;
                 }
@@ -478,7 +183,7 @@ const Chatbot = (() => {
                     return "عذراً، لا يمكنني شرح هذا المحتوى لتعارضه مع سياسات الأمان.";
                 }
 
-                return 'عذراً، لم أستطع فهم الصورة أو توليد رد في الوقت الحالي. حاول تصحيح التحديد.';
+                return 'عذراً، لم أستطع توليد رد في الوقت الحالي.';
                 
             } catch (err) {
                 if (err.name === 'AbortError') {
@@ -488,7 +193,7 @@ const Chatbot = (() => {
                 }
                 console.error(`Attempt ${i + 1} error:`, err);
                 if (i < retries - 1) {
-                    await delay(3000); // 3s delay between retries
+                    await delay(3000);
                 }
             }
         }
