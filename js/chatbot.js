@@ -132,14 +132,14 @@ const Chatbot = (() => {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    // Gemini API: gemini-2.5-flash-lite, 3 retries, 30s timeout
+    // Gemini API: gemini-1.5-flash, 3 retries, 30s timeout
     async function sendToGemini(text) {
         const retries = 3;
         let lastError = null;
         
         for (let i = 0; i < retries; i++) {
             try {
-                const url = `${BASE_URL}models/gemini-2.5-flash-lite:generateContent?key=${API_KEY}`;
+                const url = `${BASE_URL}models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
                 
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000);
