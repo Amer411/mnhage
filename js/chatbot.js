@@ -84,30 +84,26 @@ const Chatbot = (() => {
         input.value = '';
         if (sendBtn) sendBtn.disabled = true;
         
-        removeAttachment(); // visually clear the attachment
+        const imageToSend = pendingImageBase64;
+        hideAttachmentUI(); // visually clear the attachment without nulling data
+        pendingImageBase64 = null;
         
         const container = document.getElementById('chat-messages');
         if (container) {
             container.innerHTML = '';
         }
         
-        if (pendingImageBase64) {
+        if (imageToSend) {
             const div = document.createElement('div');
             div.className = 'chat-message user';
-            div.innerHTML = `<div class="message-bubble"><img src="${pendingImageBase64}" class="chat-img-preview" alt="لقطة شاشة"><br>${escapeHtml(msg)}</div>`;
+            div.innerHTML = `<div class="message-bubble"><img src="${imageToSend}" class="chat-img-preview" alt="لقطة شاشة"><br>${escapeHtml(msg)}</div>`;
             container.appendChild(div);
         } else {
             addMessage(msg, 'user');
         }
         
-        // Ensure pendingImageBase64 is cleared out
-        pendingImageBase64 = null;
-        
         scrollToBottom();
         showTyping();
-        
-        const imageToSend = pendingImageBase64;
-        pendingImageBase64 = null;
         
         sendToGemini(msg, imageToSend).then(response => {
             hideTyping();
@@ -170,6 +166,10 @@ const Chatbot = (() => {
 
     function removeAttachment() {
         pendingImageBase64 = null;
+        hideAttachmentUI();
+    }
+
+    function hideAttachmentUI() {
         const previewEl = document.getElementById('chat-attachment-preview');
         const previewImg = document.getElementById('chat-attachment-img');
         if (previewEl) previewEl.classList.add('hidden');
