@@ -1145,6 +1145,49 @@ body {
     cursor: not-allowed;
 }
 
+/* ===== ATTACHMENT PREVIEW ===== */
+.chat-attachment-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: rgba(15, 23, 42, 0.95);
+    border-top: 1px solid var(--glass-border);
+    backdrop-filter: blur(10px);
+}
+
+.chat-attachment-preview.hidden {
+    display: none;
+}
+
+.chat-attachment-preview img {
+    height: 48px;
+    max-width: 100px;
+    border-radius: var(--radius-sm);
+    object-fit: contain;
+    border: 1px solid var(--accent-purple);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+#chat-attachment-remove {
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff4d4d;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: var(--transition);
+}
+
+#chat-attachment-remove:hover {
+    background: rgba(255, 0, 0, 0.4);
+}
+
 /* ===== CAPTURE OVERLAY & SELECTION ===== */
 .capture-overlay {
     position: fixed;
