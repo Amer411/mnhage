@@ -21,6 +21,7 @@ const App = (() => {
         setupNavigation();
         setupBackButton();
         Chatbot.init();
+        fetchNews();
 
         // Browser back button
         window.addEventListener('popstate', () => {
@@ -30,6 +31,29 @@ const App = (() => {
                 showScreen(prev.screen, false);
             }
         });
+    }
+
+    async function fetchNews() {
+        const section = document.getElementById('news-section');
+        const content = document.getElementById('news-content');
+        if (!section || !content) return;
+
+        try {
+            const FIREBASE_DB = 'https://almnhag-f48fd-default-rtdb.firebaseio.com';
+            const resp = await fetch(`${FIREBASE_DB}/app_news.json`);
+            if (resp.ok) {
+                const data = await resp.json();
+                if (data && data.text) {
+                    content.textContent = data.text;
+                    section.classList.remove('hidden');
+                } else {
+                    section.classList.add('hidden');
+                }
+            }
+        } catch (err) {
+            console.error("Failed to fetch news:", err);
+            section.classList.add('hidden');
+        }
     }
 
     function setupLoginForm() {

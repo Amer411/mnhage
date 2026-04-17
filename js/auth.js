@@ -58,7 +58,13 @@ const Auth = (() => {
             if (usedResp.ok) {
                 const usedData = await usedResp.json();
                 if (usedData !== null) {
-                    throw new Error('كلمة المرور مستخدمة بالفعل ولا يمكن استخدامها مرة أخرى');
+                    // Smart Check: Allow re-login ONLY if it's the SAME device/client
+                    // This prevents lockout during updates/refreshes.
+                    if (usedData.client_id === clientId) {
+                        console.log("Same device re-login allowed for stability.");
+                    } else {
+                        throw new Error('كلمة المرور مستخدمة بالفعل على جهاز آخر');
+                    }
                 }
             }
         } catch (err) {
