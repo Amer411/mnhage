@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - أخبار المنهج</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0118;
+            --card: rgba(255, 255, 255, 0.06);
+            --accent: #ec4899;
+            --text: #f0e6ff;
+        }
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .admin-card {
+            background: var(--card);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        h1 { font-size: 1.5rem; text-align: center; margin-bottom: 25px; color: var(--accent); }
+        textarea {
+            width: 100%;
+            height: 120px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            color: white;
+            padding: 12px;
+            font-family: inherit;
+            font-size: 1rem;
+            resize: none;
+            outline: none;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            color: white;
+            margin-bottom: 20px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #9333ea, #ec4899);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.3s;
+        }
+        button:hover { transform: translateY(-2px); opacity: 0.9; }
+        .status { text-align: center; margin-top: 15px; font-size: 0.9rem; }
+        .success { color: #22c55e; }
+        .error { color: #ef4444; }
+    </style>
+</head>
+<body>
+    <div class="admin-card">
+        <h1>إرسال خبر عاجل 📢</h1>
+        <input type="password" id="admin-pass" placeholder="كلمة مرور المسؤول">
+        <textarea id="news-text" placeholder="اكتب الخبر هنا..."></textarea>
+        <button onclick="publishNews()">نشر الخبر الآن</button>
+        <button onclick="deleteNews()" style="background: #ef4444; margin-top: 10px;">حذف الخبر الحالي</button>
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        const FIREBASE_DB = 'https://almnhag-f48fd-default-rtdb.firebaseio.com';
+
+        async function deleteNews() {
+            const pass = document.getElementById('admin-pass').value;
+            const status = document.getElementById('status');
+
+            if (!pass) {
+                status.textContent = "يرجى إدخال كلمة المرور للحذف";
+                status.className = "status error";
+                return;
+            }
+
+            if (pass !== "amr123") {
+                status.textContent = "كلمة المرور خاطئة";
+                status.className = "status error";
+                return;
+            }
+
+            if (!confirm("هل أنت متأكد من حذف الخبر؟ سيختفي من عند جميع الطلاب.")) return;
+
+            status.textContent = "جاري الحذف...";
+            try {
+                const resp = await fetch(`${FIREBASE_DB}/app_news.json`, { method: 'DELETE' });
+                if (resp.ok) {
+                    status.textContent = "✅ تم حذف الخبر بنجاح!";
+                    status.className = "status success";
+                }
+            } catch (err) {
+                status.textContent = "❌ فشل الحذف.";
+                status.className = "status error";
+            }
+        }
+
+        async function publishNews() {
+            const pass = document.getElementById('admin-pass').value;
+            const text = document.getElementById('news-text').value;
+            const status = document.getElementById('status');
+
+            if (!pass || !text) {
+                status.textContent = "يرجى ملء جميع الحقول";
+                status.className = "status error";
+                return;
+            }
+
+            // Simple check (you can change this password)
+            if (pass !== "amr123") {
+                status.textContent = "كلمة المرور خاطئة";
+                status.className = "status error";
+                return;
+            }
+
+            status.textContent = "جاري النشر...";
+            status.className = "status";
+
+            try {
+                const resp = await fetch(`${FIREBASE_DB}/app_news.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ text, timestamp: Date.now() }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (resp.ok) {
+                    status.textContent = "✅ تم نشر الخبر بنجاح!";
+                    status.className = "status success";
+                    document.getElementById('news-text').value = "";
+                } else {
+                    throw new Error();
+                }
+            } catch (err) {
+                status.textContent = "❌ فشل النشر. تأكد من الإنترنت.";
+                status.className = "status error";
+            }
+        }
+    </script>
+</body>
+</html>
