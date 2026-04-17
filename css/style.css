@@ -626,6 +626,19 @@ body {
     letter-spacing: 1px;
 }
 
+/* ===== PROTECTION MODES ===== */
+@media print {
+    body {
+        display: none !important;
+    }
+}
+
+.tab-blur {
+    filter: blur(15px) !important;
+    pointer-events: none !important;
+    user-select: none !important;
+}
+
 /* ===== COMING SOON ===== */
 .coming-soon {
     text-align: center;
@@ -973,39 +986,39 @@ body {
     border-color: var(--primary-light);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
 .year-btn.disabled {
     opacity: 0.4;
     cursor: not-allowed;
     background: rgba(0, 0, 0, 0.2);
 }
 
-/* ===== iOS Install Banner ===== */
+/* ===== IMPROVED INSTALL BANNER ===== */
 .ios-install-banner {
     position: fixed;
-    bottom: 0;
+    top: 0;
     left: 0;
     right: 0;
-    z-index: 30;
-    padding: 16px;
-    animation: slideUp 0.4s ease;
-}
-
-@keyframes slideUp {
-    from { transform: translateY(100%); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    bottom: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.3s ease;
 }
 
 .ios-banner-content {
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 24px 20px;
+    width: 100%;
+    max-width: 340px;
+    padding: 30px 24px;
     text-align: center;
     position: relative;
     background: rgba(26, 10, 46, 0.95) !important;
     border: 1px solid rgba(147, 51, 234, 0.3) !important;
-    box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    border-radius: 20px;
 }
 
 .ios-banner-close {
@@ -1250,3 +1263,108 @@ body {
     line-height: 1.5;
 }
 
+
+/* ===== PREMIUM INSTALL MODAL ===== */
+.ios-install-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background: rgba(10, 1, 24, 0.9);
+    backdrop-filter: blur(15px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    animation: fadeIn 0.4s ease;
+}
+
+.ios-banner-content {
+    width: 100%;
+    max-width: 360px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 32px 24px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
+}
+
+.ios-banner-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.ios-banner-icon {
+    font-size: 3.5rem;
+    margin-bottom: 20px;
+    filter: drop-shadow(0 0 15px rgba(147, 51, 234, 0.6));
+}
+
+.ios-banner-content h3 {
+    font-size: 1.5rem;
+    margin-bottom: 12px;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
+
+.ios-banner-content p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.ios-steps {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.ios-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 12px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.step-num {
+    background: var(--accent-gradient);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.share-icon-img {
+    background: white;
+    padding: 3px;
+    border-radius: 6px;
+    margin: 0 4px;
+    width: 24px;
+    height: 24px;
+    vertical-align: middle;
+}
