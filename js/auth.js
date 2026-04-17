@@ -4,13 +4,24 @@
 const Auth = (() => {
     const FIREBASE_DB = 'https://almnhag-f48fd-default-rtdb.firebaseio.com';
     const LOGIN_KEY = 'almnhaj_login';
+    const CLIENT_ID_KEY = 'almnhaj_client_id';
+
+    // Generate a simple persistent client fingerprint
+    function getClientId() {
+        let id = localStorage.getItem(CLIENT_ID_KEY);
+        if (!id) {
+            id = 'c_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+            localStorage.setItem(CLIENT_ID_KEY, id);
+        }
+        return id;
+    }
 
     function isLoggedIn() {
         const data = localStorage.getItem(LOGIN_KEY);
         if (!data) return false;
         try {
             const parsed = JSON.parse(data);
-            return parsed.logged_in === true;
+            return parsed.logged_in === true && parsed.user_info?.password;
         } catch { return false; }
     }
 
@@ -39,7 +50,8 @@ const Auth = (() => {
             throw new Error('أدخل كلمة المرور');
         }
 
-        // 1. Check if password was already used (one-time password like native app)
+        // 1. Check if password was already used
+        const clientId = getClientId();
         const usedCheckUrl = `${FIREBASE_DB}/used_passwords/${password}.json`;
         try {
             const usedResp = await fetch(usedCheckUrl);
@@ -50,10 +62,8 @@ const Auth = (() => {
                 }
             }
         } catch (err) {
-            if (err.message === 'كلمة المرور مستخدمة بالفعل ولا يمكن استخدامها مرة أخرى') {
-                throw err;
-            }
-            // Network error, continue with login attempt
+            if (err.message.includes('مستخدمة بالفعل')) throw err;
+            // Network error, continue
         }
 
         // 2. Check lock
@@ -101,7 +111,7 @@ const Auth = (() => {
 
             // 7. Get or create user ID
             const userId = await getOrCreateUserId(password);
-            await uploadUsedPassword(password, userId);
+            await uploadUsedPassword(password, userId, clientId);
 
             // 8. Save login state
             localStorage.setItem(LOGIN_KEY, JSON.stringify({
@@ -145,11 +155,15 @@ const Auth = (() => {
         }
     }
 
-    async function uploadUsedPassword(password, userId) {
+    async function uploadUsedPassword(password, userId, clientId) {
         try {
             await fetch(`${FIREBASE_DB}/used_passwords/${password}.json`, {
                 method: 'PUT',
-                body: JSON.stringify({ user_id: userId, timestamp: Date.now() / 1000 }),
+                body: JSON.stringify({ 
+                    user_id: userId, 
+                    client_id: clientId,
+                    timestamp: Date.now() / 1000 
+                }),
                 headers: { 'Content-Type': 'application/json' }
             });
         } catch {}

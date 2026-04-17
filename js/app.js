@@ -563,9 +563,8 @@ const App = (() => {
 
         // 1. Handle Android/Chrome (beforeinstallprompt)
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            console.log("Captured beforeinstallprompt event");
             e.preventDefault();
-            // Stash the event so it can be triggered later.
             deferredPrompt = e;
             
             // Show banner if not dismissed and not in standalone
@@ -574,7 +573,7 @@ const App = (() => {
                     banner.classList.remove('hidden');
                     androidUI?.classList.remove('hidden');
                     iosUI?.classList.add('hidden');
-                }, 3000);
+                }, 2000); // 2 seconds delay
             }
         });
 
@@ -587,18 +586,19 @@ const App = (() => {
                 banner.classList.remove('hidden');
                 iosUI?.classList.remove('hidden');
                 androidUI?.classList.add('hidden');
-            }, 3000);
+            }, 3000); // 3 seconds delay for iOS
         }
 
         // Install button click (Android)
         installBtn?.addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            // Show the prompt
+            if (!deferredPrompt) {
+                // If event was missed, show a hint
+                alert("يرجى الضغط على القائمة في المتصفح واختيار 'تثبيت التطبيق'");
+                return;
+            }
             deferredPrompt.prompt();
-            // Wait for the user to respond to the prompt
             const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User response to the install prompt: ${outcome}`);
-            // We've used the prompt, and can't use it again, throw it away
+            console.log(`Install outcome: ${outcome}`);
             deferredPrompt = null;
             banner.classList.add('hidden');
         });
