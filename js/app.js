@@ -601,16 +601,22 @@ const App = (() => {
             }
         });
 
-        // 2. Handle iOS (Manual check)
+        // 2. Handle ALL other cases (Manual check)
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         
-        if (isIOS && !isStandalone() && !localStorage.getItem('pwa_install_dismissed')) {
+        // Show banner for ALL devices after a delay if not already installed and not dismissed
+        if (!isStandalone() && !localStorage.getItem('pwa_install_dismissed')) {
             setTimeout(() => {
                 banner.classList.remove('hidden');
-                iosUI?.classList.remove('hidden');
-                androidUI?.classList.add('hidden');
-            }, 3000); // 3 seconds delay for iOS
+                if (isIOS) {
+                    iosUI?.classList.remove('hidden');
+                    androidUI?.classList.add('hidden');
+                } else {
+                    androidUI?.classList.remove('hidden');
+                    iosUI?.classList.add('hidden');
+                }
+            }, 3000); // 3 seconds delay for all devices
         }
 
         // Install button click (Android)
