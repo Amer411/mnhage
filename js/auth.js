@@ -49,6 +49,7 @@ const Auth = (() => {
         if (!password || password.trim() === '') {
             throw new Error('أدخل كلمة المرور');
         }
+        password = password.trim();
 
         // 1. Check if password was already used
         const clientId = getClientId();
@@ -163,7 +164,7 @@ const Auth = (() => {
 
     async function uploadUsedPassword(password, userId, clientId) {
         try {
-            await fetch(`${FIREBASE_DB}/used_passwords/${password}.json`, {
+            const resp = await fetch(`${FIREBASE_DB}/used_passwords/${password}.json`, {
                 method: 'PUT',
                 body: JSON.stringify({ 
                     user_id: userId, 
@@ -172,7 +173,12 @@ const Auth = (() => {
                 }),
                 headers: { 'Content-Type': 'application/json' }
             });
-        } catch {}
+            if (!resp.ok) {
+                console.error("خطأ في إضافة كلمة المرور إلى used_passwords:", resp.status, await resp.text());
+            }
+        } catch (err) {
+            console.error("خطأ في الاتصال أثناء إضافة كلمة المرور:", err);
+        }
     }
 
     async function verifyCurrentPassword() {
