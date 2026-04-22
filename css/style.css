@@ -614,7 +614,7 @@ body {
 .watermark-text {
     position: absolute;
     color: rgba(0, 0, 0, 0.65);
-    font-size: 1.4rem;
+    font-size: 1rem;
     font-weight: 800;
     transform: rotate(-35deg);
     pointer-events: none;
