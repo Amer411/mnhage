@@ -9,9 +9,7 @@ const App = (() => {
         // Check login status
         if (Auth.isLoggedIn()) {
             navigate('main');
-            if (Auth.verifyCurrentPassword) {
-                Auth.verifyCurrentPassword();
-            }
+            Auth.startHeartbeat();
         } else {
             navigate('login');
         }
@@ -121,11 +119,14 @@ const App = (() => {
             target.querySelector('.screen-content')?.scrollTo(0, 0);
         }
 
-        // Manage chatbot FAB
+        // Manage chatbot FAB & Install Banner
         if (screenId === 'login') {
             Chatbot.hide();
+            showInstallBanner();
         } else {
             Chatbot.show();
+            // Hide install banner if navigating away from login
+            document.getElementById('pwa-install-banner')?.classList.add('hidden');
         }
 
         // Manage watermark
@@ -576,59 +577,32 @@ const App = (() => {
     // ===== PWA Install Prompts (Android & iOS) =====
     let deferredPrompt;
 
+    function isStandalone() {
+        return window.navigator.standalone === true || 
+               window.matchMedia('(display-mode: standalone)').matches;
+    }
+
     function setupInstallPrompts() {
         const banner = document.getElementById('pwa-install-banner');
-        const androidUI = document.getElementById('android-install-ui');
-        const iosUI = document.getElementById('ios-install-ui');
-        const closeBtn = document.getElementById('pwa-banner-close');
         const installBtn = document.getElementById('android-install-btn');
+        const closeBtn = document.getElementById('pwa-banner-close');
 
         if (!banner) return;
 
-        // 1. Handle Android/Chrome (beforeinstallprompt)
+        // Capture the event silently - don't show anything yet
         window.addEventListener('beforeinstallprompt', (e) => {
-            console.log("Captured beforeinstallprompt event");
             e.preventDefault();
             deferredPrompt = e;
-            
-            // Show banner if not dismissed and not in standalone
-            if (!localStorage.getItem('pwa_install_dismissed') && !isStandalone()) {
-                setTimeout(() => {
-                    banner.classList.remove('hidden');
-                    androidUI?.classList.remove('hidden');
-                    iosUI?.classList.add('hidden');
-                }, 2000); // 2 seconds delay
-            }
         });
-
-        // 2. Handle ALL other cases (Manual check)
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        
-        // Show banner for ALL devices after a delay if not already installed and not dismissed
-        if (!isStandalone() && !localStorage.getItem('pwa_install_dismissed')) {
-            setTimeout(() => {
-                banner.classList.remove('hidden');
-                if (isIOS) {
-                    iosUI?.classList.remove('hidden');
-                    androidUI?.classList.add('hidden');
-                } else {
-                    androidUI?.classList.remove('hidden');
-                    iosUI?.classList.add('hidden');
-                }
-            }, 3000); // 3 seconds delay for all devices
-        }
 
         // Install button click (Android)
         installBtn?.addEventListener('click', async () => {
             if (!deferredPrompt) {
-                // If event was missed, show a hint
                 alert("يرجى الضغط على القائمة في المتصفح واختيار 'تثبيت التطبيق'");
                 return;
             }
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
-            console.log(`Install outcome: ${outcome}`);
             deferredPrompt = null;
             banner.classList.add('hidden');
         });
@@ -638,12 +612,34 @@ const App = (() => {
             banner.classList.add('hidden');
             localStorage.setItem('pwa_install_dismissed', 'true');
         });
+    }
 
-        // Helper to check if app is already installed
-        function isStandalone() {
-            return window.navigator.standalone === true || 
-                   window.matchMedia('(display-mode: standalone)').matches;
-        }
+    // Show install banner on login screen
+    function showInstallBanner() {
+        // Don't show if: already installed OR already dismissed
+        if (isStandalone() || localStorage.getItem('pwa_install_dismissed')) return;
+
+        const banner = document.getElementById('pwa-install-banner');
+        const androidUI = document.getElementById('android-install-ui');
+        const iosUI = document.getElementById('ios-install-ui');
+        if (!banner) return;
+
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+        setTimeout(() => {
+            // Only show if still on login screen
+            if (currentScreen !== 'login') return;
+            
+            banner.classList.remove('hidden');
+            if (isIOS) {
+                iosUI?.classList.remove('hidden');
+                androidUI?.classList.add('hidden');
+            } else {
+                androidUI?.classList.remove('hidden');
+                iosUI?.classList.add('hidden');
+            }
+        }, 2000); // Show 2 seconds after login screen appears
     }
 
     // Start app
@@ -651,6 +647,7 @@ const App = (() => {
         init();
         setupInstallPrompts();
     });
+
 
     return { navigate, goBack };
 })();
