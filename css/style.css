@@ -214,10 +214,10 @@ body {
 /* ===== LOGIN SCREEN ===== */
 .login-container {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     min-height: 100vh;
-    padding: 24px;
+    padding: 100px 24px 24px;
 }
 
 .login-card {
