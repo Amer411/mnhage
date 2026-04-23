@@ -1301,13 +1301,18 @@ body {
 /* ==== PWA Install Modal ==== */
 .install-modal {
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100vh;
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    padding-top: 20px;
+    padding-top: 40px;
     background: rgba(0, 0, 0, 0.6);
-    z-index: 30;
+    z-index: 1000;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     transition: var(--transition);
