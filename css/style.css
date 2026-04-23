@@ -1304,7 +1304,8 @@ body {
     inset: 0;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
+    padding-top: 20px;
     background: rgba(0, 0, 0, 0.6);
     z-index: 30;
     backdrop-filter: blur(8px);
@@ -1320,8 +1321,13 @@ body {
     position: relative;
     max-width: 340px;
     width: 90%;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-    animation: fadeIn 0.3s ease;
+    box-shadow: 0 4px 25px rgba(0,0,0,0.5);
+    animation: slideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
 
 .install-close {
