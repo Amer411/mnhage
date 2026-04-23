@@ -217,7 +217,7 @@ body {
     align-items: flex-start;
     justify-content: center;
     min-height: 100vh;
-    padding: 100px 24px 24px;
+    padding: 60px 24px 24px;
 }
 
 .login-card {
