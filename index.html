@@ -203,29 +203,16 @@
         </form>
     </div>
 
-    <!-- ====== PWA Install Banner (Android & iOS) ====== -->
-    <div id="pwa-install-banner" class="ios-install-banner hidden">
-        <div class="ios-banner-content glass-card">
-            <button id="pwa-banner-close" class="ios-banner-close">✕</button>
-            <div class="ios-banner-icon">📲</div>
+    <!-- ====== PWA Install Modal ====== -->
+    <div id="pwa-install-banner" class="install-modal hidden">
+        <div class="install-content glass-card">
+            <button id="pwa-banner-close" class="install-close">✕</button>
+            <div class="install-icon">📲</div>
             <h3>تثبيت تطبيق "المنهج الشامل"</h3>
-            
-            <!-- Android specific UI -->
             <div id="android-install-ui" class="hidden">
                 <p>قم بتثبيت التطبيق على هاتفك للوصول السريع والسهل في أي وقت.</p>
                 <button id="android-install-btn" class="btn btn-primary btn-full" style="margin-top: 10px;">تثبيت الآن</button>
             </div>
-
-                <!-- iOS specific UI -->
-                <div id="ios-install-ui" class="hidden">
-                    <p>لتثبيت التطبيق على جهاز الآيفون الخاص بك:</p>
-                    <div class="ios-steps">
-                        <div class="ios-step">
-                            <span class="step-num">1</span>
-                            <span>اضغط على زر المشاركة <span class="share-icon-img">⬆️</span> في أسفل المتصفح</span>
-                        </div>
-                        <div class="ios-step">
-                            <span class="step-num">2</span>
                             <span>اسحب القائمة للأعلى واختر "إضافة إلى الشاشة الرئيسية" ➕</span>
                         </div>
                         <div class="ios-step">
