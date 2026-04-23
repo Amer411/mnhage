@@ -627,19 +627,16 @@ const App = (() => {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-        setTimeout(() => {
-            // Only show if still on login screen
-            if (currentScreen !== 'login') return;
-            
-            banner.classList.remove('hidden');
-            if (isIOS) {
-                iosUI?.classList.remove('hidden');
-                androidUI?.classList.add('hidden');
-            } else {
-                androidUI?.classList.remove('hidden');
-                iosUI?.classList.add('hidden');
-            }
-        }, 2000); // Show 2 seconds after login screen appears
+        // Show install banner immediately if on login screen
+        if (currentScreen !== 'login') return;
+        banner.classList.remove('hidden');
+        if (isIOS) {
+            iosUI?.classList.remove('hidden');
+            androidUI?.classList.add('hidden');
+        } else {
+            androidUI?.classList.remove('hidden');
+            iosUI?.classList.add('hidden');
+        }
     }
 
     // Start app
