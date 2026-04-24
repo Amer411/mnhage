@@ -5,6 +5,15 @@ const Auth = (() => {
     const FIREBASE_DB = 'https://almnhag-f48fd-default-rtdb.firebaseio.com';
     const LOGIN_KEY = 'almnhaj_login';
 
+    // Generate a unique client ID for this device/session
+    function generateClientId() {
+        const stored = localStorage.getItem('almnhaj_client_id');
+        if (stored) return stored;
+        const id = 'c_' + Math.random().toString(36).substr(2, 15);
+        localStorage.setItem('almnhaj_client_id', id);
+        return id;
+    }
+
     function isLoggedIn() {
         const data = localStorage.getItem(LOGIN_KEY);
         if (!data) return false;
@@ -29,7 +38,10 @@ const Auth = (() => {
         const user = getUser();
         if (user?.user_info?.password) {
             const pw = user.user_info.password;
+            const encodedPw = encodeURIComponent(pw).replace(/\./g, '%2E');
             fetch(`${FIREBASE_DB}/active_passwords/${pw}.json`, { method: 'DELETE' }).catch(() => {});
+            // Remove from active_sessions on logout
+            fetch(`${FIREBASE_DB}/active_sessions/${encodedPw}.json`, { method: 'DELETE' }).catch(() => {});
         }
         localStorage.removeItem(LOGIN_KEY);
     }
@@ -99,11 +111,42 @@ const Auth = (() => {
                 throw new Error('كلمة المرور غير صحيحة');
             }
 
-            // 7. Get or create user ID
+            // 7. Check if user was kicked in active_sessions
+            const encodedPw = encodeURIComponent(passwordStr).replace(/\./g, '%2E');
+            try {
+                const sessionResp = await fetch(`${FIREBASE_DB}/active_sessions/${encodedPw}/status.json`);
+                if (sessionResp.ok) {
+                    const status = await sessionResp.json();
+                    if (status === 'kicked') {
+                        throw new Error('تم إيقاف هذا الكرت نهائياً ولا يمكن استخدامه');
+                    }
+                }
+            } catch (kickErr) {
+                if (kickErr.message === 'تم إيقاف هذا الكرت نهائياً ولا يمكن استخدامه') {
+                    throw kickErr;
+                }
+            }
+
+            // 8. Get or create user ID
             const userId = await getOrCreateUserId(password);
             await uploadUsedPassword(password, userId);
 
-            // 8. Save login state
+            // 9. Register active session (for admin panel tracking)
+            const clientId = generateClientId();
+            try {
+                await fetch(`${FIREBASE_DB}/active_sessions/${encodedPw}.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        client_id: clientId,
+                        last_active: Date.now() / 1000,
+                        status: 'active',
+                        user_id: userId
+                    }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            } catch {}
+
+            // 10. Save login state
             localStorage.setItem(LOGIN_KEY, JSON.stringify({
                 logged_in: true,
                 user_info: { user_id: userId, password }
@@ -163,6 +206,20 @@ const Auth = (() => {
         
         try {
             const passwordStr = String(password).trim();
+            const encodedPw = encodeURIComponent(passwordStr).replace(/\./g, '%2E');
+
+            // Check if user was kicked
+            const sessionResp = await fetch(`${FIREBASE_DB}/active_sessions/${encodedPw}/status.json`);
+            if (sessionResp.ok) {
+                const status = await sessionResp.json();
+                if (status === 'kicked') {
+                    logout();
+                    window.location.reload();
+                    return;
+                }
+            }
+
+            // Check if password still exists in DB
             const resp = await fetch(`${FIREBASE_DB}/passwords/${passwordStr}.json`);
             if (resp.ok) {
                 const passwordData = await resp.json();
@@ -170,8 +227,18 @@ const Auth = (() => {
                     // Password removed from DB, log user out
                     logout();
                     window.location.reload();
+                    return;
                 }
             }
+
+            // Update last_active timestamp
+            try {
+                await fetch(`${FIREBASE_DB}/active_sessions/${encodedPw}/last_active.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify(Date.now() / 1000),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            } catch {}
         } catch (e) {
             // Network issue, do nothing
         }
