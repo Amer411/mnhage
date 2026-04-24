@@ -93,7 +93,12 @@ const Auth = (() => {
                 throw new Error('لا يمكن الوصول إلى قاعدة البيانات');
             }
             const data = await resp.json() || {};
-            const found = Object.values(data).some(v => v === password);
+            const passwordStr = String(password).trim();
+            const found = Object.values(data).some(v => {
+                // Compare as strings to handle numeric passwords stored as numbers in Firebase
+                if (v === null || v === undefined || typeof v === 'object') return false;
+                return String(v).trim() === passwordStr;
+            });
             
             if (!found) {
                 throw new Error('كلمة المرور غير صحيحة');
@@ -165,7 +170,11 @@ const Auth = (() => {
             const resp = await fetch(`${FIREBASE_DB}/.json`);
             if (resp.ok) {
                 const data = await resp.json() || {};
-                const found = Object.values(data).some(v => v === password);
+                const passwordStr = String(password).trim();
+                const found = Object.values(data).some(v => {
+                    if (v === null || v === undefined || typeof v === 'object') return false;
+                    return String(v).trim() === passwordStr;
+                });
                 if (!found) {
                     // Password removed from DB, log user out
                     logout();
