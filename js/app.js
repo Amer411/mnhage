@@ -9,7 +9,9 @@ const App = (() => {
         // Check login status
         if (Auth.isLoggedIn()) {
             navigate('main');
-            Auth.startHeartbeat();
+            if (Auth.verifyCurrentPassword) {
+                Auth.verifyCurrentPassword();
+            }
         } else {
             navigate('login');
         }
@@ -19,7 +21,6 @@ const App = (() => {
         setupNavigation();
         setupBackButton();
         Chatbot.init();
-        fetchNews();
 
         // Browser back button
         window.addEventListener('popstate', () => {
@@ -29,29 +30,6 @@ const App = (() => {
                 showScreen(prev.screen, false);
             }
         });
-    }
-
-    async function fetchNews() {
-        const section = document.getElementById('news-section');
-        const content = document.getElementById('news-content');
-        if (!section || !content) return;
-
-        try {
-            const FIREBASE_DB = 'https://almnhag-f48fd-default-rtdb.firebaseio.com';
-            const resp = await fetch(`${FIREBASE_DB}/app_news.json`);
-            if (resp.ok) {
-                const data = await resp.json();
-                if (data && data.text) {
-                    content.textContent = data.text;
-                    section.classList.remove('hidden');
-                } else {
-                    section.classList.add('hidden');
-                }
-            }
-        } catch (err) {
-            console.error("Failed to fetch news:", err);
-            section.classList.add('hidden');
-        }
     }
 
     function setupLoginForm() {
@@ -119,14 +97,11 @@ const App = (() => {
             target.querySelector('.screen-content')?.scrollTo(0, 0);
         }
 
-        // Manage chatbot FAB & Install Banner
+        // Manage chatbot FAB
         if (screenId === 'login') {
             Chatbot.hide();
-            showInstallBanner();
         } else {
             Chatbot.show();
-            // Hide install banner if navigating away from login
-            document.getElementById('pwa-install-banner')?.classList.add('hidden');
         }
 
         // Manage watermark
@@ -574,77 +549,44 @@ const App = (() => {
         });
     }
 
-    // ===== PWA Install Prompts (Android & iOS) =====
-    let deferredPrompt;
-
-    function isStandalone() {
-        return window.navigator.standalone === true || 
-               window.matchMedia('(display-mode: standalone)').matches;
-    }
-
-    function setupInstallPrompts() {
-        const banner = document.getElementById('pwa-install-banner');
-        const installBtn = document.getElementById('android-install-btn');
-        const closeBtn = document.getElementById('pwa-banner-close');
-
-        if (!banner) return;
-
-        // Capture the event silently - don't show anything yet
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-        });
-
-        // Install button click (Android)
-        installBtn?.addEventListener('click', async () => {
-            if (!deferredPrompt) {
-                alert("يرجى الضغط على القائمة في المتصفح واختيار 'تثبيت التطبيق'");
-                return;
-            }
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            deferredPrompt = null;
-            banner.classList.add('hidden');
-        });
-
-        // Close button handler
-        closeBtn?.addEventListener('click', () => {
-            banner.classList.add('hidden');
-            localStorage.setItem('pwa_install_dismissed', 'true');
-        });
-    }
-
-    // Show install banner on login screen
-    function showInstallBanner() {
-        // Don't show if: already installed OR already dismissed
-        if (isStandalone() || localStorage.getItem('pwa_install_dismissed')) return;
-
-        const banner = document.getElementById('pwa-install-banner');
-        const androidUI = document.getElementById('android-install-ui');
-        const iosUI = document.getElementById('ios-install-ui');
-        if (!banner) return;
-
+    // ===== iOS Install Prompt =====
+    function checkIOSInstallPrompt() {
+        // Check if iOS
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-        // Show install banner immediately if on login screen
-        if (currentScreen !== 'login') return;
-        banner.classList.remove('hidden');
-        if (isIOS) {
-            iosUI?.classList.remove('hidden');
-            androidUI?.classList.add('hidden');
-        } else {
-            androidUI?.classList.remove('hidden');
-            iosUI?.classList.add('hidden');
+        
+        // Check if already in standalone mode (installed as PWA)
+        const isStandalone = window.navigator.standalone === true || 
+                             window.matchMedia('(display-mode: standalone)').matches;
+        
+        // Check if user previously dismissed
+        const dismissed = localStorage.getItem('ios_install_dismissed');
+        
+        if (isIOS && !isStandalone && !dismissed) {
+            // Show banner after a short delay
+            setTimeout(() => {
+                const banner = document.getElementById('ios-install-banner');
+                if (banner) {
+                    banner.classList.remove('hidden');
+                }
+            }, 2000);
+            
+            // Close button handler
+            document.getElementById('ios-banner-close')?.addEventListener('click', () => {
+                const banner = document.getElementById('ios-install-banner');
+                if (banner) {
+                    banner.classList.add('hidden');
+                    localStorage.setItem('ios_install_dismissed', 'true');
+                }
+            });
         }
     }
 
     // Start app
     document.addEventListener('DOMContentLoaded', () => {
         init();
-        setupInstallPrompts();
+        checkIOSInstallPrompt();
     });
-
 
     return { navigate, goBack };
 })();
