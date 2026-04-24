@@ -4,21 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="المنهج الشامل - تطبيق تعليمي يحتوي على إجابات نموذجية لتقاويم الدروس والنماذج الوزارية">
-    
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://almnhage.vercel.app/">
-    <meta property="og:title" content="المنهج الشامل">
-    <meta property="og:description" content="تطبيق تعليمي للمنهج اليمني - إجابات نموذجية، نماذج وزارية، وملخصات شاملة.">
-    <meta property="og:image" content="https://almnhage.vercel.app/images/og-preview.png">
-
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://almnhage.vercel.app/">
-    <meta property="twitter:title" content="المنهج الشامل">
-    <meta property="twitter:description" content="تطبيق تعليمي للمنهج اليمني - إجابات نموذجية، نماذج وزارية، وملخصات شاملة.">
-    <meta property="twitter:image" content="https://almnhage.vercel.app/images/og-preview.png">
-
     <meta name="theme-color" content="#1a0a2e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -53,7 +38,7 @@
                     </div>
                     <form id="login-form" autocomplete="off">
                         <div class="input-group">
-                            <input type="text" id="password-input" placeholder="أدخل كلمة المرور" required autocomplete="off">
+                            <input type="password" id="password-input" placeholder="أدخل كلمة المرور" required autocomplete="off">
                             <span class="input-icon">🔑</span>
                         </div>
                         <button type="submit" id="login-btn" class="btn btn-primary btn-full">
@@ -73,17 +58,6 @@
                 <h1 class="header-title">المنهج الشامل</h1>
             </header>
             <div class="screen-content">
-                <!-- News Feed Section -->
-                <div id="news-section" class="news-container glass-card hidden">
-                    <div class="news-header">
-                        <span class="news-dot"></span>
-                        <h3>خبر مهم</h3>
-                    </div>
-                    <div id="news-content" class="news-body">
-                        جاري تحميل آخر الأخبار...
-                    </div>
-                </div>
-
                 <div class="main-grid">
                     <div class="main-card glass-card" data-navigate="models" id="card-models">
                         <div class="card-icon">📝</div>
@@ -203,33 +177,35 @@
         </form>
     </div>
 
-    <!-- ====== PWA Install Modal ====== -->
-    <div id="pwa-install-banner" class="install-modal hidden">
-        <div class="install-content glass-card">
-            <button id="pwa-banner-close" class="install-close">✕</button>
-            <div class="install-icon">📲</div>
-            <h3>تثبيت تطبيق "المنهج الشامل"</h3>
-            <div id="android-install-ui" class="hidden">
-                <p>قم بتثبيت التطبيق على هاتفك للوصول السريع والسهل في أي وقت.</p>
-                <button id="android-install-btn" class="btn btn-primary btn-full" style="margin-top: 10px;">تثبيت الآن</button>
-            </div>
-                            <span>اسحب القائمة للأعلى واختر "إضافة إلى الشاشة الرئيسية" ➕</span>
-                        </div>
-                        <div class="ios-step">
-                            <span class="step-num">3</span>
-                            <span>اضغط على كلمة "إضافة" في الزاوية العلوية</span>
-                        </div>
-                    </div>
+    <!-- ====== iOS Install Banner ====== -->
+    <div id="ios-install-banner" class="ios-install-banner hidden">
+        <div class="ios-banner-content glass-card">
+            <button id="ios-banner-close" class="ios-banner-close">✕</button>
+            <div class="ios-banner-icon">📲</div>
+            <h3>تثبيت التطبيق</h3>
+            <p>لتثبيت التطبيق على جهازك:</p>
+            <div class="ios-steps">
+                <div class="ios-step">
+                    <span class="step-num">1</span>
+                    <span>اضغط على زر المشاركة <span class="share-icon">⬆️</span> في الأسفل</span>
                 </div>
+                <div class="ios-step">
+                    <span class="step-num">2</span>
+                    <span>اختر "إضافة إلى الشاشة الرئيسية" ➕</span>
+                </div>
+                <div class="ios-step">
+                    <span class="step-num">3</span>
+                    <span>اضغط "إضافة" في الأعلى</span>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Scripts -->
-    <script src="js/content.js?v=25"></script>
-    <script src="js/auth.js?v=25"></script>
-    <script src="js/protection.js?v=25"></script>
-    <script src="js/chatbot.js?v=25"></script>
-    <script src="js/app.js?v=25"></script>
+    <script src="js/content.js?v=24"></script>
+    <script src="js/auth.js?v=24"></script>
+    <script src="js/chatbot.js?v=24"></script>
+    <script src="js/app.js?v=24"></script>
 
     <!-- Register Service Worker -->
     <script>
