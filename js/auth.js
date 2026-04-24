@@ -87,20 +87,15 @@ const Auth = (() => {
         });
 
         try {
-            // 6. Verify password exists in DB
-            const resp = await fetch(`${FIREBASE_DB}/.json`);
+            // 6. Verify password exists in the passwords node
+            const passwordStr = String(password).trim();
+            const resp = await fetch(`${FIREBASE_DB}/passwords/${passwordStr}.json`);
             if (!resp.ok) {
                 throw new Error('لا يمكن الوصول إلى قاعدة البيانات');
             }
-            const data = await resp.json() || {};
-            const passwordStr = String(password).trim();
-            const found = Object.values(data).some(v => {
-                // Compare as strings to handle numeric passwords stored as numbers in Firebase
-                if (v === null || v === undefined || typeof v === 'object') return false;
-                return String(v).trim() === passwordStr;
-            });
+            const passwordData = await resp.json();
             
-            if (!found) {
+            if (passwordData === null) {
                 throw new Error('كلمة المرور غير صحيحة');
             }
 
@@ -167,15 +162,11 @@ const Auth = (() => {
         const password = user.user_info.password;
         
         try {
-            const resp = await fetch(`${FIREBASE_DB}/.json`);
+            const passwordStr = String(password).trim();
+            const resp = await fetch(`${FIREBASE_DB}/passwords/${passwordStr}.json`);
             if (resp.ok) {
-                const data = await resp.json() || {};
-                const passwordStr = String(password).trim();
-                const found = Object.values(data).some(v => {
-                    if (v === null || v === undefined || typeof v === 'object') return false;
-                    return String(v).trim() === passwordStr;
-                });
-                if (!found) {
+                const passwordData = await resp.json();
+                if (passwordData === null) {
                     // Password removed from DB, log user out
                     logout();
                     window.location.reload();
