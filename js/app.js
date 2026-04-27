@@ -4,6 +4,7 @@
 const App = (() => {
     let history = [];
     let currentScreen = 'login';
+    let currentZoom = 100;
 
     function init() {
         // Check login status
@@ -20,6 +21,7 @@ const App = (() => {
         setupLoginForm();
         setupNavigation();
         setupBackButton();
+        setupViewerZoom();
         Chatbot.init();
 
         // Browser back button
@@ -427,6 +429,7 @@ const App = (() => {
         if (counter) counter.textContent = `${data.urls.length} صورة`;
         if (!container) return;
         container.innerHTML = '';
+        currentZoom = 100; // Reset zoom on open
 
         // First: create all wrappers in order and append to container
         const wrappers = data.urls.map((url, i) => {
@@ -467,6 +470,23 @@ const App = (() => {
                 img.style.opacity = '1';
                 wrapper.style.minHeight = 'auto';
             };
+
+            // Double tap to zoom
+            let lastTap = 0;
+            wrapper.addEventListener('touchend', (e) => {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    currentZoom = currentZoom === 100 ? 250 : 100;
+                    updateZoom();
+                    e.preventDefault();
+                }
+                lastTap = currentTime;
+            });
+            wrapper.addEventListener('dblclick', () => {
+                currentZoom = currentZoom === 100 ? 250 : 100;
+                updateZoom();
+            });
 
             wrapper.appendChild(img);
             container.appendChild(wrapper);
@@ -546,6 +566,33 @@ const App = (() => {
             span.style.left = `${pos.x}%`;
             span.style.top = `${pos.y}%`;
             overlay.appendChild(span);
+        });
+    }
+
+    // ===== Zoom Logic =====
+    function setupViewerZoom() {
+        const zoomIn = document.getElementById('zoom-in');
+        const zoomOut = document.getElementById('zoom-out');
+        
+        if (zoomIn) {
+            zoomIn.addEventListener('click', () => {
+                currentZoom = Math.min(currentZoom + 50, 400); // Max 400%
+                updateZoom();
+            });
+        }
+        if (zoomOut) {
+            zoomOut.addEventListener('click', () => {
+                currentZoom = Math.max(currentZoom - 50, 100); // Min 100%
+                updateZoom();
+            });
+        }
+    }
+
+    function updateZoom() {
+        const images = document.querySelectorAll('.viewer-container img');
+        images.forEach(img => {
+            img.style.width = `${currentZoom}%`;
+            img.style.transition = 'width 0.3s ease';
         });
     }
 
