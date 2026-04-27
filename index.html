@@ -126,9 +126,14 @@
         <div id="screen-viewer" class="screen">
             <header class="app-header viewer-header">
                 <button class="header-btn back-btn" data-back>←</button>
-                <h1 class="header-title" id="viewer-title"></h1>
+                <h1 class="header-title" id="viewer-title" style="font-size: 1rem; margin: 0 5px;"></h1>
+                
+                <div style="display: flex; gap: 8px;">
+                    <button class="header-btn" id="zoom-out" style="width: 32px; height: 32px; font-size: 0.9rem;">➖</button>
+                    <button class="header-btn" id="zoom-in" style="width: 32px; height: 32px; font-size: 0.9rem;">➕</button>
+                </div>
 
-                <span class="image-counter" id="image-counter"></span>
+                <span class="image-counter" id="image-counter" style="margin-right: auto;"></span>
             </header>
             <div class="viewer-container" id="viewer-container">
                 <!-- Images will be loaded here -->
