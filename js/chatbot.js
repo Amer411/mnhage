@@ -5,13 +5,12 @@
 // Strategy: Round-robin + 429 fallback + Cache + Dedup
 // ============================
 const Chatbot = (() => {
-    // ─── 3 مفاتيح Gemini (مُشفَّرة بـ Base64 لحمايتها) ───────────────
-    const ENCODED_KEYS = [
-        'QUl6YVN5Q0dPTU9VQXExNE1UeDBGYkc4bVhEOTRxeEktUjgtQ1pv', // Key 1 (القديم)
-        'QUl6YVN5QnNXUEtkcUp3Q0RPM3dVdW1PNDJTa0RZUTl6UHd4QUVr', // Key 2 (جديد)
-        'QUl6YVN5Q3IwZDljWWNjQXZ3TnRnSklRM1VrYkZTTy1DdXVHSkww'  // Key 3 (جديد)
+// ─── 3 مفاتيح Gemini (raw, not Base64 for debugging) ───────────────
+    const API_KEYS = [
+        'AIzaSyCGOMO... (old key placeholder)',
+        'AIzaSyBsWPKdqJwCDO3wUumO42SkDYQ9zPwxAEk', // New key 1
+        'AIzaSyCr0d9cYccAvwNtgJIQ3UkbFSO-CuuGJL0'   // New key 2
     ];
-    const API_KEYS = ENCODED_KEYS.map(k => atob(k));
     const BASE_URL  = 'https://generativelanguage.googleapis.com/v1beta/';
     const MODEL     = 'gemini-2.0-flash-lite'; // الأسرع + الأرخص + مجاني
 
