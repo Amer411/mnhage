@@ -5,11 +5,11 @@
 // Strategy: Round-robin + 429 fallback + Cache + Dedup
 // ============================
 const Chatbot = (() => {
-// ─── 3 مفاتيح Gemini (raw, not Base64 for debugging) ───────────────
+    // ─── 3 مفاتيح Gemini ───────────────────────────────────────────
     const API_KEYS = [
-        'AIzaSyCGOMO... (old key placeholder)',
-        'AIzaSyBsWPKdqJwCDO3wUumO42SkDYQ9zPwxAEk', // New key 1
-        'AIzaSyCr0d9cYccAvwNtgJIQ3UkbFSO-CuuGJL0'   // New key 2
+        'AIzaSyCGOMOUAq14MTx0FbG8mXD94qxI-R8-CZo',   // Key 1 (القديم)
+        'AIzaSyBsWPKdqJwCDO3wUumO42SkDYQ9zPwxAEk',   // Key 2 (جديد)
+        'AIzaSyCr0d9cYccAvwNtgJIQ3UkbFSO-CuuGJL0'    // Key 3 (جديد)
     ];
     const BASE_URL  = 'https://generativelanguage.googleapis.com/v1beta/';
     const MODEL     = 'gemini-2.0-flash-lite'; // الأسرع + الأرخص + مجاني
@@ -25,7 +25,7 @@ const Chatbot = (() => {
 
     // ─── Key Rotation System ──────────────────────────────────────────
     // يتناوب على المفاتيح الثلاثة - إذا كُسر أحدهم ينتقل للتالي فوراً
-    const KEY_QUOTA_KEY = 'chatbot_key_quota_v1';
+    const KEY_QUOTA_KEY = 'chatbot_key_quota_v2'; // v2 لمسح البيانات القديمة المحجوبة
     const DAILY_LIMIT   = 1400; // هامش أمان من 1500
 
     function getKeyQuotas() {
