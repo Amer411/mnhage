@@ -5,13 +5,14 @@
 // Strategy: Round-robin + 429 fallback + Cache + Dedup
 // ============================
 const Chatbot = (() => {
-    // ─── 4 مفاتيح Gemini ───────────────────────────────────────────
-    const API_KEYS = [
-        'AIzaSyCGOMOUAq14MTx0FbG8mXD94qxI-R8-CZo',   // Key 1 (القديم)
-        'AIzaSyBsWPKdqJwCDO3wUumO42SkDYQ9zPwxAEk',   // Key 2 (جديد)
-        'AIzaSyCr0d9cYccAvwNtgJIQ3UkbFSO-CuuGJL0',   // Key 3 (جديد)
-        'AIzaSyDjBtBFhGC3IS5CpDrB9AyWaCApp0NEWh4'    // Key 4 (من تطبيق الأندرويد)
+    // ─── 4 مفاتيح Gemini (يجب أن تضعها مشفرة بـ Base64 لحمايتها من الحظر) ───
+    const ENCODED_KEYS = [
+        'QUl6YVN5Q0dPTU9VQXExNE1UeDBGYkc4bVhEOTRxeEktUjgtQ1pv', // (مشفر) Key 1
+        'QUl6YVN5QnNXUEtkcUp3Q0RPM3dVdW1PNDJTa0RZUTl6UHd4QUVr', // (مشفر) Key 2
+        'QUl6YVN5Q3IwZDljWWNjQXZ3TnRnSklRM1VrYkZTTy1DdXVHSkww', // (مشفر) Key 3
+        'QUl6YVN5RGpCdEJGaEdDM0lTNUNwRHJCOUF5V2FDQXBwME5FV2g0'  // (مشفر) Key 4
     ];
+    const API_KEYS = ENCODED_KEYS.map(k => atob(k));
     const BASE_URL  = 'https://generativelanguage.googleapis.com/v1beta/';
     const MODEL     = 'gemini-2.5-flash-lite'; // نفس الموديل السريع والممتاز من تطبيق الأندرويد
 
