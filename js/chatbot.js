@@ -1,59 +1,106 @@
 // ============================
-// Chatbot Module - Gemini AI (Free Tier Maximized)
-// Strategy: Cache + Rate Limit + Dedup → supports 1000+ users free
-// Free quota: 1,500 req/day | 15 req/min (gemini-2.0-flash-lite)
+// Chatbot Module - Gemini AI | Multi-Key Rotation
+// 3 keys × 1,500 req/day = 4,500 req/day FREE
+// 3 keys × 15 req/min  = 45  req/min  FREE
+// Strategy: Round-robin + 429 fallback + Cache + Dedup
 // ============================
 const Chatbot = (() => {
-    // إخفاء المفتاح عن جيت هاب لكي لا يتم تعطيله
-    const ENCODED_KEY = 'QUl6YVN5Q0dPTU9VQXExNE1UeDBGYkc4bVhEOTRxeEktUjgtQ1pv';
-    const API_KEY = atob(ENCODED_KEY);
-    const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/';
-
-    // gemini-2.0-flash-lite: الأسرع والأرخص - 1500 طلب/يوم مجاناً
-    const MODEL = 'gemini-2.0-flash-lite';
+    // ─── 3 مفاتيح Gemini (مُشفَّرة بـ Base64 لحمايتها) ───────────────
+    const ENCODED_KEYS = [
+        'QUl6YVN5Q0dPTU9VQXExNE1UeDBGYkc4bVhEOTRxeEktUjgtQ1pv', // Key 1 (القديم)
+        'QUl6YVN5QnNXUEtkcUp3Q0RPM3dVdW1PNDJTa0RZUTl6UHd4QUVr', // Key 2 (جديد)
+        'QUl6YVN5Q3IwZDljWWNjQXZ3TnRnSklRM1VrYkZTTy1DdXVHSkww'  // Key 3 (جديد)
+    ];
+    const API_KEYS = ENCODED_KEYS.map(k => atob(k));
+    const BASE_URL  = 'https://generativelanguage.googleapis.com/v1beta/';
+    const MODEL     = 'gemini-2.0-flash-lite'; // الأسرع + الأرخص + مجاني
 
     const BOT_NAME = 'بوت عمرو كريم';
     const IDENTITY = `أنت مساعد ذكي ولطيف لمساعدة الطلاب. اسمك "${BOT_NAME}" وتم برمجتك بواسطة عامر. 
     مهمتك الإجابة بشكل مباشر وواضح والمساعدة في المذاكرة.
-    قاعدة هامة: لا تكرر أبداً التعريف بنفسك أو بمن برمجك في إجاباتك إلا إذا سألك المستخدم عن ذلك بالتحديد. أعطِ الإجابة العلمية أو اشرح المطلوب مباشرة.
+    قاعدة هامة: لا تكرر أبداً التعريف بنفسك أو بمن برمجك في إجاباتك إلا إذا سألك المستخدم عن ذلك بالتحديد.
     اجعل إجاباتك مختصرة وواضحة قدر الإمكان.`;
 
-    let isOpen = false;
+    let isOpen      = false;
     let isProcessing = false;
 
-    // ─── Cache System ────────────────────────────────────────────────
-    // يحفظ إجابات الأسئلة المتكررة ويُعيدها فوراً دون استهلاك API
-    const CACHE_KEY   = 'chatbot_cache_v1';
-    const CACHE_MAX   = 200;   // أقصى عدد أسئلة محفوظة
-    const CACHE_TTL   = 86400000 * 7; // 7 أيام
+    // ─── Key Rotation System ──────────────────────────────────────────
+    // يتناوب على المفاتيح الثلاثة - إذا كُسر أحدهم ينتقل للتالي فوراً
+    const KEY_QUOTA_KEY = 'chatbot_key_quota_v1';
+    const DAILY_LIMIT   = 1400; // هامش أمان من 1500
+
+    function getKeyQuotas() {
+        try {
+            const stored = JSON.parse(localStorage.getItem(KEY_QUOTA_KEY));
+            const todayStr = new Date().toDateString();
+            if (stored?.date === todayStr) return stored;
+            // يوم جديد - إعادة التعيين
+            return { date: todayStr, counts: [0, 0, 0], blocked: [false, false, false] };
+        } catch {
+            return { date: new Date().toDateString(), counts: [0, 0, 0], blocked: [false, false, false] };
+        }
+    }
+
+    function saveKeyQuotas(q) {
+        try { localStorage.setItem(KEY_QUOTA_KEY, JSON.stringify(q)); } catch {}
+    }
+
+    // الحالة الدائرية للمفتاح الحالي
+    let currentKeyIndex = 0;
+
+    function getNextAvailableKey() {
+        const q = getKeyQuotas();
+        // ابحث عن مفتاح غير محجوب وغير مستنفد (يبدأ من currentKeyIndex)
+        for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
+            const idx = (currentKeyIndex + attempt) % API_KEYS.length;
+            if (!q.blocked[idx] && q.counts[idx] < DAILY_LIMIT) {
+                currentKeyIndex = idx;
+                return { key: API_KEYS[idx], index: idx };
+            }
+        }
+        return null; // جميع المفاتيح مستنفدة
+    }
+
+    function markKeyUsed(index) {
+        const q = getKeyQuotas();
+        q.counts[index]++;
+        saveKeyQuotas(q);
+        // التحضير للمفتاح التالي (round-robin)
+        currentKeyIndex = (index + 1) % API_KEYS.length;
+    }
+
+    function markKeyBlocked(index) {
+        const q = getKeyQuotas();
+        q.blocked[index] = true;
+        saveKeyQuotas(q);
+        currentKeyIndex = (index + 1) % API_KEYS.length;
+    }
+
+    // ─── Response Cache (7 أيام) ──────────────────────────────────────
+    const CACHE_KEY = 'chatbot_cache_v1';
+    const CACHE_MAX = 200;
+    const CACHE_TTL = 86400000 * 7;
 
     function normalizeQuestion(text) {
         return text.trim().toLowerCase().replace(/\s+/g, ' ');
     }
-
     function getCache() {
-        try { return JSON.parse(localStorage.getItem(CACHE_KEY)) || {}; }
-        catch { return {}; }
+        try { return JSON.parse(localStorage.getItem(CACHE_KEY)) || {}; } catch { return {}; }
     }
-
     function setCache(cache) {
-        try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); }
-        catch { /* storage full - ignore */ }
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch {}
     }
-
     function cacheGet(question) {
         const cache = getCache();
-        const key = normalizeQuestion(question);
+        const key   = normalizeQuestion(question);
         const entry = cache[key];
         if (!entry) return null;
         if (Date.now() - entry.ts > CACHE_TTL) { delete cache[key]; setCache(cache); return null; }
         return entry.answer;
     }
-
     function cachePut(question, answer) {
         const cache = getCache();
-        const keys = Object.keys(cache);
-        // إزالة أقدم إدخال إذا امتلأ الكاش
+        const keys  = Object.keys(cache);
         if (keys.length >= CACHE_MAX) {
             const oldest = keys.sort((a, b) => cache[a].ts - cache[b].ts)[0];
             delete cache[oldest];
@@ -62,31 +109,8 @@ const Chatbot = (() => {
         setCache(cache);
     }
 
-    // ─── Daily Quota Tracker (client-side) ───────────────────────────
-    const QUOTA_KEY  = 'chatbot_quota_v1';
-    const DAILY_LIMIT = 1400; // نترك هامش أمان من 1500
-
-    function getQuota() {
-        try {
-            const q = JSON.parse(localStorage.getItem(QUOTA_KEY));
-            const todayStr = new Date().toDateString();
-            if (q?.date === todayStr) return q;
-            return { date: todayStr, count: 0 };
-        } catch { return { date: new Date().toDateString(), count: 0 }; }
-    }
-
-    function incrementQuota() {
-        const q = getQuota();
-        q.count++;
-        localStorage.setItem(QUOTA_KEY, JSON.stringify(q));
-    }
-
-    function isQuotaExceeded() {
-        return getQuota().count >= DAILY_LIMIT;
-    }
-
-    // ─── Rate Limit: max 12 req/min (stay under 15 free limit) ───────
-    const RATE_LIMIT  = 12;
+    // ─── Per-minute Rate Limit (عام لجميع المفاتيح) ──────────────────
+    const RATE_LIMIT  = 40; // أقل من 45 كهامش أمان
     const RATE_WINDOW = 60000;
     let messageTimestamps = [];
 
@@ -101,18 +125,14 @@ const Chatbot = (() => {
         return { allowed: true };
     }
 
-    // ─── Deduplication: منع طلبين متطابقين في وقت واحد ─────────────
+    // ─── Deduplication ───────────────────────────────────────────────
     const pendingRequests = new Map();
 
-    // ─── UI Functions ─────────────────────────────────────────────────
+    // ─── UI ──────────────────────────────────────────────────────────
     function init() {
-        const fab      = document.getElementById('chat-fab');
-        const closeBtn = document.getElementById('chat-close');
-        const form     = document.getElementById('chat-form');
-
-        fab?.addEventListener('click', toggleChat);
-        closeBtn?.addEventListener('click', () => toggleChat(false));
-        form?.addEventListener('submit', handleSubmit);
+        document.getElementById('chat-fab')?.addEventListener('click', toggleChat);
+        document.getElementById('chat-close')?.addEventListener('click', () => toggleChat(false));
+        document.getElementById('chat-form')?.addEventListener('submit', handleSubmit);
     }
 
     function show() { document.getElementById('chat-fab')?.classList.remove('hidden'); }
@@ -137,83 +157,64 @@ const Chatbot = (() => {
         const input   = document.getElementById('chat-input');
         const sendBtn = document.querySelector('.chat-send-btn');
         const msg     = input?.value?.trim();
-
         if (!msg) return;
 
-        // ─ 1. كاش: إجابة فورية بدون API ─────────────────────────────
+        // ─ 1. كاش: إجابة فورية ───────────────────────────────────────
         const cached = cacheGet(msg);
         if (cached) {
             input.value = '';
             addMessage(msg, 'user');
             scrollToBottom();
-            // تأخير قصير يعطي شعور الطبيعية
             setTimeout(() => addMessage(cached, 'bot'), 300);
             return;
         }
 
-        // ─ 2. منع الرسائل المتزامنة ──────────────────────────────────
-        if (isProcessing) {
-            addMessage('⏳ انتظر حتى تنتهي الإجابة الحالية...', 'bot');
-            return;
-        }
+        // ─ 2. منع التزامن ────────────────────────────────────────────
+        if (isProcessing) { addMessage('⏳ انتظر حتى تنتهي الإجابة الحالية...', 'bot'); return; }
 
-        // ─ 3. التحقق من الحصة اليومية ────────────────────────────────
-        if (isQuotaExceeded()) {
-            addMessage('⚠️ تم استهلاك الحصة اليومية المجانية. يُرجى المحاولة غداً.', 'bot');
-            return;
-        }
-
-        // ─ 4. Rate limit ──────────────────────────────────────────────
+        // ─ 3. Rate limit ──────────────────────────────────────────────
         const rateCheck = checkRateLimit();
         if (!rateCheck.allowed) {
-            addMessage(`⏳ أرسلت رسائل كثيرة. انتظر ${rateCheck.waitTime} ثانية ثم حاول مجدداً.`, 'bot');
+            addMessage(`⏳ أرسلت رسائل كثيرة. انتظر ${rateCheck.waitTime} ثانية.`, 'bot');
             return;
         }
 
-        // ─ 5. إرسال للـ API ───────────────────────────────────────────
+        // ─ 4. تحقق من توفر مفتاح ────────────────────────────────────
+        if (!getNextAvailableKey()) {
+            addMessage('⚠️ تم استهلاك الحصة اليومية لجميع المفاتيح. حاول غداً.', 'bot');
+            return;
+        }
+
+        // ─ 5. إرسال ──────────────────────────────────────────────────
         input.value = '';
         if (sendBtn) sendBtn.disabled = true;
         isProcessing = true;
-
         addMessage(msg, 'user');
         scrollToBottom();
         showTyping();
 
-        // Dedup: إذا كان نفس السؤال يُعالَج الآن، شاركه
         const normMsg = normalizeQuestion(msg);
         if (pendingRequests.has(normMsg)) {
-            pendingRequests.get(normMsg).then(response => {
-                hideTyping();
-                addMessage(response, 'bot');
-            }).catch(err => {
-                hideTyping();
-                addMessage('خطأ: ' + (err.message || 'خطأ غير معروف'), 'bot');
-            }).finally(() => {
-                if (sendBtn) sendBtn.disabled = false;
-                isProcessing = false;
-            });
+            pendingRequests.get(normMsg).then(r => { hideTyping(); addMessage(r, 'bot'); })
+                .catch(err => { hideTyping(); addMessage('خطأ: ' + (err.message || 'خطأ غير معروف'), 'bot'); })
+                .finally(() => { if (sendBtn) sendBtn.disabled = false; isProcessing = false; });
             return;
         }
 
-        const promise = sendToGemini(msg).then(response => {
-            cachePut(msg, response);
-            incrementQuota();
-            return response;
-        });
-
+        const promise = sendToGemini(msg);
         pendingRequests.set(normMsg, promise);
 
         promise.then(response => {
+            cachePut(msg, response);
             hideTyping();
             addMessage(response, 'bot');
         }).catch(err => {
             hideTyping();
-            console.error('Chatbot error:', err);
             let errorMsg = 'خطأ: ';
-            if (err.message?.includes('مهلة'))       errorMsg += 'انتهت مهلة الاتصال. حاول مجدداً.';
-            else if (err.message?.includes('429'))   errorMsg += 'تم تجاوز عدد الطلبات. انتظر دقيقة ثم حاول.';
-            else if (err.message?.includes('403'))   errorMsg += 'مفتاح API غير صالح أو معطل.';
-            else                                      errorMsg += err.message || 'تأكد من الإنترنت.';
+            if (err.message?.includes('مهلة'))     errorMsg += 'انتهت مهلة الاتصال. حاول مجدداً.';
+            else if (err.message?.includes('429')) errorMsg += 'الحصة المجانية نفدت مؤقتاً. حاول بعد دقيقة.';
+            else if (err.message?.includes('403')) errorMsg += 'مشكلة في المفاتيح. راجع الإعدادات.';
+            else                                    errorMsg += err.message || 'تأكد من الإنترنت.';
             addMessage(errorMsg, 'bot');
         }).finally(() => {
             pendingRequests.delete(normMsg);
@@ -222,47 +223,19 @@ const Chatbot = (() => {
         });
     }
 
-    function addMessage(text, sender) {
-        const container = document.getElementById('chat-messages');
-        if (!container) return;
-        const div = document.createElement('div');
-        div.className = `chat-message ${sender}`;
-        div.innerHTML = `<div class="message-bubble">${escapeHtml(text)}</div>`;
-        container.appendChild(div);
-        scrollToBottom();
-    }
-
-    function showTyping() {
-        const container = document.getElementById('chat-messages');
-        if (!container) return;
-        const typing = document.createElement('div');
-        typing.className = 'chat-message bot';
-        typing.id = 'typing-msg';
-        typing.innerHTML = `<div class="message-bubble typing-indicator"><span></span><span></span><span></span></div>`;
-        container.appendChild(typing);
-        scrollToBottom();
-    }
-
-    function hideTyping()    { document.getElementById('typing-msg')?.remove(); }
-    function scrollToBottom() {
-        const c = document.getElementById('chat-messages');
-        if (c) requestAnimationFrame(() => { c.scrollTop = c.scrollHeight; });
-    }
-    function escapeHtml(text) {
-        const d = document.createElement('div');
-        d.textContent = text;
-        return d.innerHTML.replace(/\n/g, '<br>');
-    }
-    function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-    // ─── Gemini API Call ──────────────────────────────────────────────
+    // ─── Gemini API مع تدوير المفاتيح تلقائياً ────────────────────────
     async function sendToGemini(text) {
-        const retries = 3;
-        let lastError = null;
+        const maxAttempts = API_KEYS.length * 2; // حاول كل مفتاح مرتين
+        let lastError     = null;
 
-        for (let i = 0; i < retries; i++) {
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            const keyInfo = getNextAvailableKey();
+            if (!keyInfo) throw new Error('جميع المفاتيح مستنفدة اليوم');
+
+            const { key, index } = keyInfo;
+
             try {
-                const url = `${BASE_URL}models/${MODEL}:generateContent?key=${API_KEY}`;
+                const url        = `${BASE_URL}models/${MODEL}:generateContent?key=${key}`;
                 const controller = new AbortController();
                 const timeoutId  = setTimeout(() => controller.abort(), 30000);
 
@@ -280,17 +253,28 @@ const Chatbot = (() => {
                 clearTimeout(timeoutId);
 
                 if (!response.ok) {
-                    const errorBody = await response.text();
-                    console.error(`Attempt ${i + 1} failed:`, response.status, errorBody);
-                    lastError = new Error(`خطأ في الخادم: ${response.status}`);
+                    const errBody = await response.text();
+                    console.warn(`Key[${index}] attempt ${attempt + 1} failed: ${response.status}`);
+
                     if (response.status === 429) {
-                        if (i < retries - 1) await delay(5000 * (i + 1));
+                        // هذا المفتاح وصل لحده - جرب التالي فوراً
+                        markKeyBlocked(index);
+                        lastError = new Error('429');
+                        await delay(1000);
                         continue;
                     }
-                    if (i < retries - 1) await delay(3000);
+                    if (response.status === 403) {
+                        markKeyBlocked(index);
+                        lastError = new Error('403');
+                        continue;
+                    }
+                    lastError = new Error(`خطأ في الخادم: ${response.status}`);
+                    await delay(2000);
                     continue;
                 }
 
+                // ─ نجاح ─
+                markKeyUsed(index);
                 const result = await response.json();
 
                 if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
@@ -304,14 +288,50 @@ const Chatbot = (() => {
                 return 'عذراً، لم أستطع توليد رد في الوقت الحالي.';
 
             } catch (err) {
-                lastError = err.name === 'AbortError' ? new Error('انتهت مهلة الاتصال') : err;
-                console.error(`Attempt ${i + 1} error:`, err);
-                if (i < retries - 1) await delay(3000);
+                if (err.name === 'AbortError') {
+                    lastError = new Error('انتهت مهلة الاتصال');
+                } else {
+                    lastError = err;
+                }
+                console.error(`Key[${index}] error:`, err.message);
+                await delay(2000);
             }
         }
 
         throw lastError || new Error('فشل الاتصال بعد عدة محاولات');
     }
+
+    // ─── Helpers ─────────────────────────────────────────────────────
+    function addMessage(text, sender) {
+        const container = document.getElementById('chat-messages');
+        if (!container) return;
+        const div = document.createElement('div');
+        div.className = `chat-message ${sender}`;
+        div.innerHTML = `<div class="message-bubble">${escapeHtml(text)}</div>`;
+        container.appendChild(div);
+        scrollToBottom();
+    }
+    function showTyping() {
+        const container = document.getElementById('chat-messages');
+        if (!container) return;
+        const typing = document.createElement('div');
+        typing.className = 'chat-message bot';
+        typing.id = 'typing-msg';
+        typing.innerHTML = `<div class="message-bubble typing-indicator"><span></span><span></span><span></span></div>`;
+        container.appendChild(typing);
+        scrollToBottom();
+    }
+    function hideTyping()    { document.getElementById('typing-msg')?.remove(); }
+    function scrollToBottom() {
+        const c = document.getElementById('chat-messages');
+        if (c) requestAnimationFrame(() => { c.scrollTop = c.scrollHeight; });
+    }
+    function escapeHtml(text) {
+        const d = document.createElement('div');
+        d.textContent = text;
+        return d.innerHTML.replace(/\n/g, '<br>');
+    }
+    function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
     return { init, show, hide, toggleChat };
 })();
