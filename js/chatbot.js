@@ -5,14 +5,15 @@
 // Strategy: Round-robin + 429 fallback + Cache + Dedup
 // ============================
 const Chatbot = (() => {
-    // ─── 3 مفاتيح Gemini ───────────────────────────────────────────
+    // ─── 4 مفاتيح Gemini ───────────────────────────────────────────
     const API_KEYS = [
         'AIzaSyCGOMOUAq14MTx0FbG8mXD94qxI-R8-CZo',   // Key 1 (القديم)
         'AIzaSyBsWPKdqJwCDO3wUumO42SkDYQ9zPwxAEk',   // Key 2 (جديد)
-        'AIzaSyCr0d9cYccAvwNtgJIQ3UkbFSO-CuuGJL0'    // Key 3 (جديد)
+        'AIzaSyCr0d9cYccAvwNtgJIQ3UkbFSO-CuuGJL0',   // Key 3 (جديد)
+        'AIzaSyDjBtBFhGC3IS5CpDrB9AyWaCApp0NEWh4'    // Key 4 (من تطبيق الأندرويد)
     ];
     const BASE_URL  = 'https://generativelanguage.googleapis.com/v1beta/';
-    const MODEL     = 'gemini-1.5-flash'; // الموديل الأكثر استقراراً للحصة المجانية
+    const MODEL     = 'gemini-2.5-flash-lite'; // نفس الموديل السريع والممتاز من تطبيق الأندرويد
 
     const BOT_NAME = 'بوت عمرو كريم';
     const IDENTITY = `أنت مساعد ذكي ولطيف لمساعدة الطلاب. اسمك "${BOT_NAME}" وتم برمجتك بواسطة عامر. 
@@ -24,8 +25,8 @@ const Chatbot = (() => {
     let isProcessing = false;
 
     // ─── Key Rotation System ──────────────────────────────────────────
-    // يتناوب على المفاتيح الثلاثة - إذا كُسر أحدهم ينتقل للتالي فوراً
-    const KEY_QUOTA_KEY = 'chatbot_key_quota_v3'; // v3 لتحديث نظام الحظر المؤقت
+    // يتناوب على المفاتيح الأربعة - إذا كُسر أحدهم ينتقل للتالي فوراً
+    const KEY_QUOTA_KEY = 'chatbot_key_quota_v4'; // v4 لتحديث نظام المفاتيح الأربعة والموديل الجديد
     const DAILY_LIMIT   = 1450; 
     const TEMP_BLOCK_MS = 60000; // حظر المفتاح لمدة دقيقة واحدة فقط عند ضغط الطلبات (429)
 
