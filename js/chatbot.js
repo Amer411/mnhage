@@ -12,7 +12,7 @@ const Chatbot = (() => {
         'AIzaSyCr0d9cYccAvwNtgJIQ3UkbFSO-CuuGJL0'    // Key 3 (جديد)
     ];
     const BASE_URL  = 'https://generativelanguage.googleapis.com/v1beta/';
-    const MODEL     = 'gemini-2.0-flash-lite'; // الأسرع + الأرخص + مجاني
+    const MODEL     = 'gemini-1.5-flash'; // الموديل الأكثر استقراراً للحصة المجانية
 
     const BOT_NAME = 'بوت عمرو كريم';
     const IDENTITY = `أنت مساعد ذكي ولطيف لمساعدة الطلاب. اسمك "${BOT_NAME}" وتم برمجتك بواسطة عامر. 
@@ -25,18 +25,26 @@ const Chatbot = (() => {
 
     // ─── Key Rotation System ──────────────────────────────────────────
     // يتناوب على المفاتيح الثلاثة - إذا كُسر أحدهم ينتقل للتالي فوراً
-    const KEY_QUOTA_KEY = 'chatbot_key_quota_v2'; // v2 لمسح البيانات القديمة المحجوبة
-    const DAILY_LIMIT   = 1400; // هامش أمان من 1500
+    const KEY_QUOTA_KEY = 'chatbot_key_quota_v3'; // v3 لتحديث نظام الحظر المؤقت
+    const DAILY_LIMIT   = 1450; 
+    const TEMP_BLOCK_MS = 60000; // حظر المفتاح لمدة دقيقة واحدة فقط عند ضغط الطلبات (429)
 
     function getKeyQuotas() {
         try {
             const stored = JSON.parse(localStorage.getItem(KEY_QUOTA_KEY));
             const todayStr = new Date().toDateString();
-            if (stored?.date === todayStr) return stored;
-            // يوم جديد - إعادة التعيين
-            return { date: todayStr, counts: [0, 0, 0], blocked: [false, false, false] };
+            // اليوم الجديد أو أول مرة
+            return { 
+                date: todayStr, 
+                counts: new Array(API_KEYS.length).fill(0), 
+                blockedUntil: new Array(API_KEYS.length).fill(0) 
+            };
         } catch {
-            return { date: new Date().toDateString(), counts: [0, 0, 0], blocked: [false, false, false] };
+            return { 
+                date: new Date().toDateString(), 
+                counts: new Array(API_KEYS.length).fill(0), 
+                blockedUntil: new Array(API_KEYS.length).fill(0) 
+            };
         }
     }
 
@@ -49,15 +57,17 @@ const Chatbot = (() => {
 
     function getNextAvailableKey() {
         const q = getKeyQuotas();
-        // ابحث عن مفتاح غير محجوب وغير مستنفد (يبدأ من currentKeyIndex)
+        const now = Date.now();
         for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
             const idx = (currentKeyIndex + attempt) % API_KEYS.length;
-            if (!q.blocked[idx] && q.counts[idx] < DAILY_LIMIT) {
+            const isTempBlocked = q.blockedUntil && q.blockedUntil[idx] > now;
+            
+            if (!isTempBlocked && q.counts[idx] < DAILY_LIMIT) {
                 currentKeyIndex = idx;
                 return { key: API_KEYS[idx], index: idx };
             }
         }
-        return null; // جميع المفاتيح مستنفدة
+        return null;
     }
 
     function markKeyUsed(index) {
@@ -70,7 +80,8 @@ const Chatbot = (() => {
 
     function markKeyBlocked(index) {
         const q = getKeyQuotas();
-        q.blocked[index] = true;
+        if (!q.blockedUntil) q.blockedUntil = new Array(API_KEYS.length).fill(0);
+        q.blockedUntil[index] = Date.now() + TEMP_BLOCK_MS;
         saveKeyQuotas(q);
         currentKeyIndex = (index + 1) % API_KEYS.length;
     }
