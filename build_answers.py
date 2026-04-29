@@ -1,7 +1,7 @@
 import re, json, os
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(BASE)
+ROOT = os.path.join(BASE, '-المنهج الشامل مرتب')
 
 def extract_model_blocks(kv_text, screen_class):
     """Extract the entire screen block from KV text."""

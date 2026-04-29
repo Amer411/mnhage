@@ -5,7 +5,7 @@ and favorites2.kv for other model screens, then generate a complete content.js w
 import re, json, os
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(BASE)
+ROOT = os.path.join(BASE, '-المنهج الشامل مرتب')
 
 def extract_model_blocks(kv_text, screen_class):
     """Extract the entire screen block from KV text."""
@@ -87,16 +87,16 @@ if os.path.exists(fav2_path):
     with open(fav2_path, 'r', encoding='utf-8') as f:
         kv2 = f.read()
     
-    # FavoritesScreen_13 = Literary models
-    lit_block = extract_model_blocks(kv2, 'FavoritesScreen_13')
+    # FavoritesScreen_7 = Literary models
+    lit_block = extract_model_blocks(kv2, 'FavoritesScreen_7')
     literary_subjects = extract_subjects_and_years(lit_block) if lit_block else []
     
-    # FavoritesScreen_14 = Abyan models
-    abyan_block = extract_model_blocks(kv2, 'FavoritesScreen_14')
+    # FavoritesScreen_13 = Abyan models
+    abyan_block = extract_model_blocks(kv2, 'FavoritesScreen_13')
     abyan_subjects = extract_subjects_and_years(abyan_block) if abyan_block else []
     
-    # FavoritesScreen_15 = Lahj models
-    lahj_block = extract_model_blocks(kv2, 'FavoritesScreen_15')
+    # FavoritesScreen_14 = Lahj models
+    lahj_block = extract_model_blocks(kv2, 'FavoritesScreen_14')
     lahj_subjects = extract_subjects_and_years(lahj_block) if lahj_block else []
 
     # FavoritesScreen_21 = Aden English section (located in favorites1.kv usually, or favorites2.kv)
@@ -248,27 +248,11 @@ js.append("")
 
 # --- Answers Section ---
 js.append("    // ===================== إجابات التقاويم =====================")
-js.append("    answers: {")
-js.append("        categories: [")
-js.append("            { id: 'islamic', name: 'التربية الإسلامية', icon: '🕌', subs: [")
-js.append("                { id: 'iman', name: 'إيمان', icon: '☪️' },")
-js.append("                { id: 'hadith', name: 'حديث', icon: '📖' },")
-js.append("                { id: 'fiqh', name: 'فقه', icon: '⚖️' },")
-js.append("                { id: 'sira', name: 'سيرة', icon: '🌙' }")
-js.append("            ]},")
-js.append("            { id: 'arabic', name: 'اللغة العربية', icon: '✍️', subs: [")
-js.append("                { id: 'adab', name: 'أدب ونصوص', icon: '📝' },")
-js.append("                { id: 'nahw', name: 'نحو', icon: '📐' },")
-js.append("                { id: 'qiraa', name: 'قراءة', icon: '📚' }")
-js.append("            ]},")
-js.append("            { id: 'quran_t', name: 'القرآن الكريم', icon: '📗' },")
-js.append("            { id: 'chemistry_lessons', name: 'الكيمياء', icon: '🧪' },")
-js.append("            { id: 'physics_lessons', name: 'الفيزياء', icon: '⚡' },")
-js.append("            { id: 'biology', name: 'الأحياء', icon: '🧬' }")
-js.append("        ]")
-js.append("    },")
+js.append("    answers: [],")
 js.append("")
-
+js.append("    // ===================== الملخصات المضمونة =====================")
+js.append("    summaries: [],")
+js.append("")
 # --- Lessons Data ---
 js.append("    // ===================== بيانات الدروس =====================")
 js.append("    lessons: {")
