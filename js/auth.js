@@ -47,122 +47,127 @@ const Auth = (() => {
     }
 
     async function login(password) {
-        if (!password || password.trim() === '') {
+        if (!password || String(password).trim() === '') {
             throw new Error('أدخل كلمة المرور');
         }
 
-        // 1. Check if password was already used (one-time password like native app)
-        const usedCheckUrl = `${FIREBASE_DB}/used_passwords/${password}.json`;
+        const passwordStr = String(password).trim();
+        const encodedPw = encodeURIComponent(passwordStr).replace(/\./g, '%2E');
+        const clientId = generateClientId();
+
+        // 1. Check if password was already used by ANOTHER device
+        const usedCheckUrl = `${FIREBASE_DB}/used_passwords/${passwordStr}.json`;
         try {
             const usedResp = await fetch(usedCheckUrl);
             if (usedResp.ok) {
                 const usedData = await usedResp.json();
                 if (usedData !== null) {
-                    throw new Error('كلمة المرور مستخدمة بالفعل ولا يمكن استخدامها مرة أخرى');
+                    // Password was used. Check if it's the same device.
+                    if (usedData.client_id && usedData.client_id !== clientId) {
+                        throw new Error('كلمة المرور مستخدمة بالفعل على جهاز آخر');
+                    }
+                    // If we want to block even the same device from re-entering (strict one-time entry):
+                    // throw new Error('كلمة المرور مستخدمة بالفعل ولا يمكن استخدامها مرة أخرى');
+                    
+                    // Note: We currently allow the same device to re-login if they log out.
                 }
             }
         } catch (err) {
-            if (err.message === 'كلمة المرور مستخدمة بالفعل ولا يمكن استخدامها مرة أخرى') {
-                throw err;
+            if (err.message.includes('مستخدمة بالفعل')) throw err;
+        }
+
+        // 2. Check if there is an ACTIVE session on another device
+        try {
+            const sessionResp = await fetch(`${FIREBASE_DB}/active_sessions/${encodedPw}.json`);
+            if (sessionResp.ok) {
+                const sessionData = await sessionResp.json();
+                if (sessionData !== null) {
+                    if (sessionData.status === 'kicked') {
+                        throw new Error('تم إيقاف هذا الكرت نهائياً ولا يمكن استخدامه');
+                    }
+                    if (sessionData.client_id && sessionData.client_id !== clientId) {
+                        // Check if the session is actually "recent" (e.g., last 5 minutes)
+                        const now = Date.now() / 1000;
+                        if (now - sessionData.last_active < 300) { // 5 minutes threshold
+                            throw new Error('كلمة المرور قيد الاستخدام حالياً على جهاز آخر');
+                        }
+                    }
+                }
             }
-            // Network error, continue with login attempt
+        } catch (err) {
+            if (err.message.includes('قيد الاستخدام') || err.message.includes('إيقاف')) throw err;
         }
 
-        // 2. Check lock
-        const lockUrl = `${FIREBASE_DB}/lock/${password}.json`;
-        const activeUrl = `${FIREBASE_DB}/active_passwords/${password}.json`;
-
-        const lockResp = await fetch(lockUrl);
-        if (lockResp.ok && (await lockResp.json()) !== null) {
-            throw new Error('كلمة المرور قيد الاستخدام حالياً');
-        }
-
-        // 3. Set lock
-        await fetch(lockUrl, {
-            method: 'PUT',
-            body: JSON.stringify({ timestamp: Date.now() / 1000 }),
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        // 4. Check active
-        const activeResp = await fetch(activeUrl);
-        if (activeResp.ok && (await activeResp.json()) !== null) {
-            await fetch(lockUrl, { method: 'DELETE' });
-            throw new Error('كلمة المرور قيد الاستخدام حالياً');
-        }
-
-        // 5. Set active
-        await fetch(activeUrl, {
-            method: 'PUT',
-            body: JSON.stringify({ timestamp: Date.now() / 1000 }),
-            headers: { 'Content-Type': 'application/json' }
-        });
+        // 3. Check and set login lock (short-term concurrency protection)
+        const lockUrl = `${FIREBASE_DB}/lock/${passwordStr}.json`;
+        const activeUrl = `${FIREBASE_DB}/active_passwords/${passwordStr}.json`;
 
         try {
-            // 6. Verify password exists in the passwords node
-            const passwordStr = String(password).trim();
-            const resp = await fetch(`${FIREBASE_DB}/passwords/${passwordStr}.json`);
-            if (!resp.ok) {
-                throw new Error('لا يمكن الوصول إلى قاعدة البيانات');
+            const lockResp = await fetch(lockUrl);
+            if (lockResp.ok && (await lockResp.json()) !== null) {
+                throw new Error('جاري معالجة دخول آخر حالياً.. انتظر لحظة');
             }
+
+            await fetch(lockUrl, {
+                method: 'PUT',
+                body: JSON.stringify({ timestamp: Date.now() / 1000 }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const activeResp = await fetch(activeUrl);
+            if (activeResp.ok && (await activeResp.json()) !== null) {
+                await fetch(lockUrl, { method: 'DELETE' });
+                throw new Error('جاري معالجة دخول آخر حالياً.. انتظر لحظة');
+            }
+
+            await fetch(activeUrl, {
+                method: 'PUT',
+                body: JSON.stringify({ timestamp: Date.now() / 1000 }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            // 4. Verify password exists in master list
+            const resp = await fetch(`${FIREBASE_DB}/passwords/${passwordStr}.json`);
+            if (!resp.ok) throw new Error('لا يمكن الوصول إلى قاعدة البيانات');
             const passwordData = await resp.json();
             
             if (passwordData === null) {
                 throw new Error('كلمة المرور غير صحيحة');
             }
 
-            // 7. Check if user was kicked in active_sessions
-            const encodedPw = encodeURIComponent(passwordStr).replace(/\./g, '%2E');
-            try {
-                const sessionResp = await fetch(`${FIREBASE_DB}/active_sessions/${encodedPw}/status.json`);
-                if (sessionResp.ok) {
-                    const status = await sessionResp.json();
-                    if (status === 'kicked') {
-                        throw new Error('تم إيقاف هذا الكرت نهائياً ولا يمكن استخدامه');
-                    }
-                }
-            } catch (kickErr) {
-                if (kickErr.message === 'تم إيقاف هذا الكرت نهائياً ولا يمكن استخدامه') {
-                    throw kickErr;
-                }
-            }
+            // 5. Success! Get/Create User ID and mark as used
+            const userId = await getOrCreateUserId(passwordStr);
+            await uploadUsedPassword(passwordStr, userId, clientId);
 
-            // 8. Get or create user ID
-            const userId = await getOrCreateUserId(password);
-            await uploadUsedPassword(password, userId);
+            // 6. Register active session
+            await fetch(`${FIREBASE_DB}/active_sessions/${encodedPw}.json`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    client_id: clientId,
+                    last_active: Date.now() / 1000,
+                    status: 'active',
+                    user_id: userId
+                }),
+                headers: { 'Content-Type': 'application/json' }
+            });
 
-            // 9. Register active session (for admin panel tracking)
-            const clientId = generateClientId();
-            try {
-                await fetch(`${FIREBASE_DB}/active_sessions/${encodedPw}.json`, {
-                    method: 'PUT',
-                    body: JSON.stringify({
-                        client_id: clientId,
-                        last_active: Date.now() / 1000,
-                        status: 'active',
-                        user_id: userId
-                    }),
-                    headers: { 'Content-Type': 'application/json' }
-                });
-            } catch {}
-
-            // 10. Save login state
+            // 7. Save to local storage
             localStorage.setItem(LOGIN_KEY, JSON.stringify({
                 logged_in: true,
-                user_info: { user_id: userId, password }
+                user_info: { user_id: userId, password: passwordStr }
             }));
 
             return { success: true, userId };
+
         } finally {
-            // Cleanup
             fetch(activeUrl, { method: 'DELETE' }).catch(() => {});
             fetch(lockUrl, { method: 'DELETE' }).catch(() => {});
         }
     }
 
-    async function getOrCreateUserId(password) {
+    async function getOrCreateUserId(passwordStr) {
         try {
-            const usedResp = await fetch(`${FIREBASE_DB}/used_passwords/${password}.json`);
+            const usedResp = await fetch(`${FIREBASE_DB}/used_passwords/${passwordStr}.json`);
             if (usedResp.ok) {
                 const data = await usedResp.json();
                 if (data?.user_id) return data.user_id;
@@ -188,11 +193,15 @@ const Auth = (() => {
         }
     }
 
-    async function uploadUsedPassword(password, userId) {
+    async function uploadUsedPassword(passwordStr, userId, clientId) {
         try {
-            await fetch(`${FIREBASE_DB}/used_passwords/${password}.json`, {
+            await fetch(`${FIREBASE_DB}/used_passwords/${passwordStr}.json`, {
                 method: 'PUT',
-                body: JSON.stringify({ user_id: userId, timestamp: Date.now() / 1000 }),
+                body: JSON.stringify({ 
+                    user_id: userId, 
+                    client_id: clientId,
+                    timestamp: Date.now() / 1000 
+                }),
                 headers: { 'Content-Type': 'application/json' }
             });
         } catch {}
