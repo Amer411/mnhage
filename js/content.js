@@ -671,9 +671,9 @@ const ContentData = {
         {
             name: "التربية الأسلامية",
             buttons: [
-                { title: "عدد", urls: [], comingSoon: true },
+                { title: "عدد", urls: ["https://cdn.jsdelivr.net/gh/Amer411/nmadge2025@main/Aden/Islamic/Add.jpg"] },
                 { title: "عرّف", urls: ["https://cdn.jsdelivr.net/gh/Amer411/nmadge2025@main/Aden/Islamic/arf.jpg"] },
-                { title: "بيّن", urls: ["https://cdn.jsdelivr.net/gh/Amer411/nmadge2025@main/Aden/Islamic/Ppen.jpg"] },
+                { title: "علل", urls: ["https://cdn.jsdelivr.net/gh/Amer411/nmadge2025@main/Aden/Islamic/All.jpg"] },
                 { title: "من القائل وما المناسبة", urls: ["https://firebasestorage.googleapis.com/v0/b/testt22-46325.appspot.com/o/%D8%B9%D9%84%D9%84%2F%D8%A7%D8%B3%D9%84%D8%A7%D9%85%D9%8A%D8%A9%2FScreenshot_20250322-054853_PDF%20Extra.jpg?alt=media&token=7a4fa937-40ad-4857-8b41-ed3d559ff4cd", "https://firebasestorage.googleapis.com/v0/b/testt22-46325.appspot.com/o/%D8%B9%D9%84%D9%84%2F%D8%A7%D8%B3%D9%84%D8%A7%D9%85%D9%8A%D8%A9%2FScreenshot_%D9%A2%D9%A0%D9%A2%D9%A5%D9%A0%D9%A3%D9%A2%D9%A2_%D9%A0%D9%A5%D9%A4%D9%A9%D9%A1%D9%A4.jpg?alt=media&token=14e1fef8-1e92-46d8-8a47-fa519db43ac0"] },
                 { title: "قارن", urls: [], comingSoon: true },
             ]
@@ -682,7 +682,7 @@ const ContentData = {
             name: "اللغة العربية",
             buttons: [
                 { title: "المدارس", urls: [], comingSoon: true },
-                { title: "استخرج", urls: [], comingSoon: true },
+                { title: "استخرج", urls: ["https://cdn.jsdelivr.net/gh/Amer411/nmadge2025@main/Aden/Arabic/Asthrag3.jpg"] },
                 { title: "ضد،جمع،مفرد،معنى", urls: [], comingSoon: true },
             ]
         },
