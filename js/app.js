@@ -9,121 +9,122 @@ const App = (() => {
     // ===== Zoom & Pan Manager =====
     const ZoomManager = (() => {
         let el = null, container = null;
-        let scale = 1, x = 0, y = 0;
-        let lastX = 0, lastY = 0, lastScale = 1, startDist = 0;
-        let isDragging = false;
-        let midX = 0, midY = 0;
+        let scale = 1, posX = 0, posY = 0;
+        let startX = 0, startY = 0, startPosX = 0, startPosY = 0;
+        let startDist = 0, startScale = 1;
+        let isPanning = false, isPinching = false;
+        let lastTapTime = 0;
+        let listenersAttached = false;
 
-        const getDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+        const getDist = (t) => Math.hypot(
+            t[0].clientX - t[1].clientX,
+            t[0].clientY - t[1].clientY
+        );
 
         function init(targetId, containerId) {
             el = document.getElementById(targetId);
             container = document.getElementById(containerId);
             if (!el || !container) return;
-            
-            reset();
 
-            if (ZoomManager.initialized) return;
+            scale = 1; posX = 0; posY = 0;
+            applyTransform();
 
+            if (listenersAttached) return;
+            listenersAttached = true;
+
+            // --- Touch Start ---
             container.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 1) {
-                    isDragging = true;
-                    lastX = e.touches[0].clientX - x;
-                    lastY = e.touches[0].clientY - y;
-                } else if (e.touches.length === 2) {
-                    isDragging = false;
-                    lastScale = scale;
+                e.preventDefault();
+                if (e.touches.length === 2) {
+                    isPinching = true;
+                    isPanning = false;
                     startDist = getDist(e.touches);
-                    midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-                    midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                    startScale = scale;
+                    startPosX = posX;
+                    startPosY = posY;
+                } else if (e.touches.length === 1 && !isPinching) {
+                    isPanning = true;
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+                    startPosX = posX;
+                    startPosY = posY;
                 }
             }, { passive: false });
 
+            // --- Touch Move ---
             container.addEventListener('touchmove', (e) => {
-                if (e.touches.length === 1 && isDragging) {
-                    e.preventDefault();
-                    x = e.touches[0].clientX - lastX;
-                    y = e.touches[0].clientY - lastY;
-                } else if (e.touches.length === 2) {
-                    e.preventDefault();
+                e.preventDefault();
+                if (e.touches.length === 2 && isPinching) {
                     const dist = getDist(e.touches);
-                    const newScale = Math.max(1, Math.min(5, lastScale * (dist / startDist)));
-                    
-                    // Simple midpoint scaling logic
-                    if (newScale !== scale) {
-                        const currentMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-                        const currentMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-                        
-                        // Adjust translation to keep the midpoint centered
-                        x -= (midX - x) * (newScale / scale - 1);
-                        y -= (midY - y) * (newScale / scale - 1);
-                        
-                        scale = newScale;
-                        midX = currentMidX;
-                        midY = currentMidY;
-                    }
+                    const newScale = Math.max(1, Math.min(5, startScale * (dist / startDist)));
+                    scale = newScale;
+                    applyTransform();
+                } else if (e.touches.length === 1 && isPanning && scale > 1) {
+                    const dx = e.touches[0].clientX - startX;
+                    const dy = e.touches[0].clientY - startY;
+                    posX = startPosX + dx;
+                    posY = startPosY + dy;
+                    applyTransform();
                 }
-                apply();
             }, { passive: false });
 
-            container.addEventListener('touchend', () => { 
-                isDragging = false; 
-                if (scale <= 1.05) reset(); // Snap back to natural if very close to 1
-            });
-            
-            // Double tap zoom
-            let lastTap = 0;
+            // --- Touch End ---
             container.addEventListener('touchend', (e) => {
-                const now = Date.now();
-                if (now - lastTap < 300 && e.changedTouches.length === 1) {
-                    if (scale > 1) {
-                        reset();
-                        currentZoom = 100;
-                    } else {
-                        scale = 2.5;
-                        currentZoom = 250;
-                        const rect = container.getBoundingClientRect();
-                        const tx = e.changedTouches[0].clientX - rect.left;
-                        const ty = e.changedTouches[0].clientY - rect.top;
-                        x = (container.clientWidth / 2 - tx) * (scale - 1);
-                        y = (container.clientHeight / 2 - ty) * (scale - 1);
+                if (isPinching && e.touches.length < 2) {
+                    isPinching = false;
+                    // Snap back to 1x if barely zoomed
+                    if (scale < 1.1) {
+                        scale = 1; posX = 0; posY = 0;
+                        applyTransform();
                     }
-                    apply();
-                    e.preventDefault();
                 }
-                lastTap = now;
-            });
+                if (e.touches.length === 0) {
+                    isPanning = false;
 
-            ZoomManager.initialized = true;
+                    // Double-tap detection
+                    const now = Date.now();
+                    if (now - lastTapTime < 300) {
+                        // Toggle zoom
+                        if (scale > 1.1) {
+                            scale = 1; posX = 0; posY = 0;
+                            currentZoom = 100;
+                        } else {
+                            scale = 2.5;
+                            currentZoom = 250;
+                            // Zoom toward tap point
+                            const rect = container.getBoundingClientRect();
+                            const tapX = e.changedTouches[0].clientX - rect.left;
+                            const tapY = e.changedTouches[0].clientY - rect.top;
+                            posX = (rect.width / 2 - tapX) * (scale - 1);
+                            posY = (rect.height / 2 - tapY) * (scale - 1);
+                        }
+                        applyTransform();
+                        lastTapTime = 0;
+                    } else {
+                        lastTapTime = now;
+                    }
+                }
+            }, { passive: false });
+        }
+
+        function applyTransform() {
+            if (!el) return;
+            if (scale <= 1) { scale = 1; posX = 0; posY = 0; }
+            el.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
         }
 
         function reset() {
-            scale = 1; x = 0; y = 0;
-            apply();
-        }
-
-        function apply() {
-            if (!el) return;
-            // Boundaries: when zoomed out, reset to center
-            if (scale <= 1) { 
-                scale = 1; x = 0; y = 0; 
-            }
-            el.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+            scale = 1; posX = 0; posY = 0;
+            applyTransform();
         }
 
         function setScale(s) {
-            const oldScale = scale;
-            scale = s / 100;
-            if (scale <= 1) { reset(); }
-            else {
-                // When using buttons, just scale around center
-                x = (container.clientWidth / 2) * (1 - scale / oldScale) + x * (scale / oldScale);
-                y = (container.clientHeight / 2) * (1 - scale / oldScale) + y * (scale / oldScale);
-                apply();
-            }
+            scale = Math.max(1, s / 100);
+            if (scale <= 1) { posX = 0; posY = 0; }
+            applyTransform();
         }
 
-        return { init, reset, setScale, initialized: false };
+        return { init, reset, setScale };
     })();
 
     function init() {
@@ -228,10 +229,13 @@ const App = (() => {
         }
 
         // Manage watermark
+        const watermark = document.getElementById('watermark-overlay');
         if (screenId === 'viewer') {
-            // Watermarks are now added per-image in buildViewerScreen
+            watermark?.classList.add('active');
+            addWatermarks();
         } else {
-            // Reset zoom manager if leaving viewer
+            watermark?.classList.remove('active');
+            if (watermark) watermark.innerHTML = '';
             ZoomManager.reset();
         }
 
@@ -563,9 +567,6 @@ const App = (() => {
             loadingText.style.zIndex = '2';
             wrapper.appendChild(loadingText);
 
-            // Add watermarks to this specific image wrapper
-            addWatermarks(wrapper);
-
             const img = document.createElement('img');
             img.alt = `${data.title} - صورة ${i + 1}`;
             img.style.opacity = '0';
@@ -633,20 +634,22 @@ const App = (() => {
     }
 
     // ===== Watermark =====
-    function addWatermarks(parent) {
-        if (!parent) return;
+    function addWatermarks() {
+        const overlay = document.getElementById('watermark-overlay');
+        if (!overlay) return;
+        overlay.innerHTML = '';
         
         const userId = Auth.getUserId();
-        // Repeating positions for each image wrapper
+        // Fixed positions across the screen - always visible regardless of zoom/pan
         const positions = [
-            { x: 15, y: 15 }, { x: 55, y: 10 }, { x: 85, y: 25 },
-            { x: 30, y: 45 }, { x: 70, y: 40 },
-            { x: 10, y: 70 }, { x: 50, y: 65 }, { x: 90, y: 75 },
-            { x: 35, y: 90 }, { x: 75, y: 85 }
+            { x: 5, y: 8 }, { x: 45, y: 5 }, { x: 85, y: 12 },
+            { x: 20, y: 25 }, { x: 60, y: 22 },
+            { x: 10, y: 40 }, { x: 50, y: 38 }, { x: 80, y: 42 },
+            { x: 25, y: 55 }, { x: 65, y: 52 },
+            { x: 8, y: 68 }, { x: 48, y: 65 }, { x: 82, y: 70 },
+            { x: 30, y: 82 }, { x: 70, y: 78 },
+            { x: 15, y: 92 }, { x: 55, y: 90 }
         ];
-
-        const layer = document.createElement('div');
-        layer.className = 'watermark-layer';
 
         positions.forEach(pos => {
             const span = document.createElement('span');
@@ -654,9 +657,8 @@ const App = (() => {
             span.textContent = userId;
             span.style.left = `${pos.x}%`;
             span.style.top = `${pos.y}%`;
-            layer.appendChild(span);
+            overlay.appendChild(span);
         });
-        parent.appendChild(layer);
     }
 
     // ===== Zoom Logic =====
