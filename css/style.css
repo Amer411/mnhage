@@ -604,27 +604,32 @@ body {
 }
 
 /* ===== Watermark ===== */
-.watermark-layer {
-    position: absolute;
+.watermark-overlay {
+    position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    right: 0;
+    bottom: 0;
     pointer-events: none;
-    z-index: 5;
+    z-index: 50;
+    display: none;
+}
+
+.watermark-overlay.active {
+    display: block;
     background-image: repeating-linear-gradient(
         -45deg,
         transparent,
         transparent 120px,
-        rgba(255, 255, 255, 0.015) 120px,
-        rgba(255, 255, 255, 0.015) 121px
+        rgba(255, 255, 255, 0.02) 120px,
+        rgba(255, 255, 255, 0.02) 121px
     );
 }
 
 .watermark-text {
     position: absolute;
-    color: rgba(255, 255, 255, 0.08);
-    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.1);
+    font-size: 0.9rem;
     font-weight: 700;
     transform: rotate(-35deg);
     pointer-events: none;
