@@ -56,6 +56,7 @@
         <div id="screen-main" class="screen">
             <header class="app-header">
                 <h1 class="header-title">المنهج الشامل</h1>
+                <button class="header-btn" id="main-refresh-btn" title="تحديث" style="width: 36px; height: 36px; font-size: 1rem;">🔄</button>
             </header>
             <div class="screen-content">
                 <div class="main-grid">
@@ -136,10 +137,10 @@
                 <span class="image-counter" id="image-counter" style="margin-right: auto;"></span>
             </header>
             <div class="viewer-container" id="viewer-container">
-                <!-- Images will be loaded here -->
+                <div class="zoom-content" id="zoom-content">
+                    <!-- Content will be injected here -->
+                </div>
             </div>
-            <!-- Watermark overlay -->
-            <div class="watermark-overlay" id="watermark-overlay" data-html2canvas-ignore="true"></div>
         </div>
 
         <!-- ====== MODELS DETAIL SCREEN (نماذج مادة معينة بالسنوات) ====== -->
