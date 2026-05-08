@@ -6,6 +6,126 @@ const App = (() => {
     let currentScreen = 'login';
     let currentZoom = 100;
 
+    // ===== Zoom & Pan Manager =====
+    const ZoomManager = (() => {
+        let el = null, container = null;
+        let scale = 1, x = 0, y = 0;
+        let lastX = 0, lastY = 0, lastScale = 1, startDist = 0;
+        let isDragging = false;
+        let midX = 0, midY = 0;
+
+        const getDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+        function init(targetId, containerId) {
+            el = document.getElementById(targetId);
+            container = document.getElementById(containerId);
+            if (!el || !container) return;
+            
+            reset();
+
+            if (ZoomManager.initialized) return;
+
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    lastX = e.touches[0].clientX - x;
+                    lastY = e.touches[0].clientY - y;
+                } else if (e.touches.length === 2) {
+                    isDragging = false;
+                    lastScale = scale;
+                    startDist = getDist(e.touches);
+                    midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                    midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 1 && isDragging) {
+                    e.preventDefault();
+                    x = e.touches[0].clientX - lastX;
+                    y = e.touches[0].clientY - lastY;
+                } else if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const dist = getDist(e.touches);
+                    const newScale = Math.max(1, Math.min(5, lastScale * (dist / startDist)));
+                    
+                    // Simple midpoint scaling logic
+                    if (newScale !== scale) {
+                        const currentMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                        const currentMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                        
+                        // Adjust translation to keep the midpoint centered
+                        x -= (midX - x) * (newScale / scale - 1);
+                        y -= (midY - y) * (newScale / scale - 1);
+                        
+                        scale = newScale;
+                        midX = currentMidX;
+                        midY = currentMidY;
+                    }
+                }
+                apply();
+            }, { passive: false });
+
+            container.addEventListener('touchend', () => { 
+                isDragging = false; 
+                if (scale <= 1.05) reset(); // Snap back to natural if very close to 1
+            });
+            
+            // Double tap zoom
+            let lastTap = 0;
+            container.addEventListener('touchend', (e) => {
+                const now = Date.now();
+                if (now - lastTap < 300 && e.changedTouches.length === 1) {
+                    if (scale > 1) {
+                        reset();
+                        currentZoom = 100;
+                    } else {
+                        scale = 2.5;
+                        currentZoom = 250;
+                        const rect = container.getBoundingClientRect();
+                        const tx = e.changedTouches[0].clientX - rect.left;
+                        const ty = e.changedTouches[0].clientY - rect.top;
+                        x = (container.clientWidth / 2 - tx) * (scale - 1);
+                        y = (container.clientHeight / 2 - ty) * (scale - 1);
+                    }
+                    apply();
+                    e.preventDefault();
+                }
+                lastTap = now;
+            });
+
+            ZoomManager.initialized = true;
+        }
+
+        function reset() {
+            scale = 1; x = 0; y = 0;
+            apply();
+        }
+
+        function apply() {
+            if (!el) return;
+            // Boundaries: when zoomed out, reset to center
+            if (scale <= 1) { 
+                scale = 1; x = 0; y = 0; 
+            }
+            el.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+        }
+
+        function setScale(s) {
+            const oldScale = scale;
+            scale = s / 100;
+            if (scale <= 1) { reset(); }
+            else {
+                // When using buttons, just scale around center
+                x = (container.clientWidth / 2) * (1 - scale / oldScale) + x * (scale / oldScale);
+                y = (container.clientHeight / 2) * (1 - scale / oldScale) + y * (scale / oldScale);
+                apply();
+            }
+        }
+
+        return { init, reset, setScale, initialized: false };
+    })();
+
     function init() {
         // Check login status
         if (Auth.isLoggedIn()) {
@@ -22,6 +142,7 @@ const App = (() => {
         setupNavigation();
         setupBackButton();
         setupViewerZoom();
+        setupRefreshButton();
         Chatbot.init();
 
         // Browser back button
@@ -107,13 +228,11 @@ const App = (() => {
         }
 
         // Manage watermark
-        const watermark = document.getElementById('watermark-overlay');
         if (screenId === 'viewer') {
-            watermark?.classList.add('active');
-            addWatermarks();
+            // Watermarks are now added per-image in buildViewerScreen
         } else {
-            watermark?.classList.remove('active');
-            watermark.innerHTML = '';
+            // Reset zoom manager if leaving viewer
+            ZoomManager.reset();
         }
 
         // History
@@ -423,47 +542,36 @@ const App = (() => {
         if (!data) return;
         const title = document.getElementById('viewer-title');
         const counter = document.getElementById('image-counter');
-        const container = document.getElementById('viewer-container');
+        const zoomContent = document.getElementById('zoom-content');
 
         if (title) title.textContent = data.title;
         if (counter) counter.textContent = `${data.urls.length} صورة`;
-        if (!container) return;
-        container.innerHTML = '';
-        currentZoom = 100; // Reset zoom on open
+        if (!zoomContent) return;
+        
+        zoomContent.innerHTML = '';
+        currentZoom = 100;
+        ZoomManager.init('zoom-content', 'viewer-container');
 
         // First: create all wrappers in order and append to container
         const wrappers = data.urls.map((url, i) => {
             const wrapper = document.createElement('div');
             wrapper.className = 'img-loading';
-            wrapper.style.position = 'relative';
-            wrapper.style.minHeight = '300px'; 
-            wrapper.style.display = 'flex';
-            wrapper.style.alignItems = 'center';
-            wrapper.style.justifyContent = 'center';
             
             const loadingText = document.createElement('div');
             loadingText.textContent = `جاري التحميل... (صورة ${i + 1})`;
             loadingText.style.position = 'absolute';
+            loadingText.style.zIndex = '2';
             wrapper.appendChild(loadingText);
+
+            // Add watermarks to this specific image wrapper
+            addWatermarks(wrapper);
 
             const img = document.createElement('img');
             img.alt = `${data.title} - صورة ${i + 1}`;
             img.style.opacity = '0';
             img.style.transition = 'opacity 0.3s ease';
-            img.style.width = '100%';
-            img.style.height = 'auto';
             img.style.zIndex = '1';
-            img.style.position = 'relative';
             img.draggable = false;
-
-            // Prevent long-press context menu and download
-            img.addEventListener('contextmenu', (e) => e.preventDefault());
-            img.addEventListener('dragstart', (e) => e.preventDefault());
-            img.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 1) {
-                    e.target.style.webkitTouchCallout = 'none';
-                }
-            }, { passive: true });
 
             img.onload = () => {
                 loadingText.remove();
@@ -471,30 +579,13 @@ const App = (() => {
                 wrapper.style.minHeight = 'auto';
             };
 
-            // Double tap to zoom
-            let lastTap = 0;
-            wrapper.addEventListener('touchend', (e) => {
-                const currentTime = new Date().getTime();
-                const tapLength = currentTime - lastTap;
-                if (tapLength < 300 && tapLength > 0) {
-                    currentZoom = currentZoom === 100 ? 250 : 100;
-                    updateZoom();
-                    e.preventDefault();
-                }
-                lastTap = currentTime;
-            });
-            wrapper.addEventListener('dblclick', () => {
-                currentZoom = currentZoom === 100 ? 250 : 100;
-                updateZoom();
-            });
-
             wrapper.appendChild(img);
-            container.appendChild(wrapper);
+            zoomContent.appendChild(wrapper);
 
-            return { wrapper, img, loadingText, url, index: i };
+            return { img, loadingText, url, index: i };
         });
 
-        // Second: load images asynchronously (order is preserved because wrappers are already in DOM)
+        // Second: load images asynchronously
         wrappers.forEach(({ img, loadingText, url, index }) => {
             loadImageWithProgress(img, loadingText, url, index);
         });
@@ -542,22 +633,20 @@ const App = (() => {
     }
 
     // ===== Watermark =====
-    function addWatermarks() {
-        const overlay = document.getElementById('watermark-overlay');
-        if (!overlay) return;
-        overlay.innerHTML = '';
+    function addWatermarks(parent) {
+        if (!parent) return;
         
         const userId = Auth.getUserId();
-        // More positions for better coverage
+        // Repeating positions for each image wrapper
         const positions = [
-            { x: 5, y: 8 }, { x: 45, y: 5 }, { x: 85, y: 12 },
-            { x: 20, y: 25 }, { x: 60, y: 22 },
-            { x: 10, y: 40 }, { x: 50, y: 38 }, { x: 80, y: 42 },
-            { x: 25, y: 55 }, { x: 65, y: 52 },
-            { x: 8, y: 68 }, { x: 48, y: 65 }, { x: 82, y: 70 },
-            { x: 30, y: 82 }, { x: 70, y: 78 },
-            { x: 15, y: 92 }, { x: 55, y: 90 }
+            { x: 15, y: 15 }, { x: 55, y: 10 }, { x: 85, y: 25 },
+            { x: 30, y: 45 }, { x: 70, y: 40 },
+            { x: 10, y: 70 }, { x: 50, y: 65 }, { x: 90, y: 75 },
+            { x: 35, y: 90 }, { x: 75, y: 85 }
         ];
+
+        const layer = document.createElement('div');
+        layer.className = 'watermark-layer';
 
         positions.forEach(pos => {
             const span = document.createElement('span');
@@ -565,8 +654,9 @@ const App = (() => {
             span.textContent = userId;
             span.style.left = `${pos.x}%`;
             span.style.top = `${pos.y}%`;
-            overlay.appendChild(span);
+            layer.appendChild(span);
         });
+        parent.appendChild(layer);
     }
 
     // ===== Zoom Logic =====
@@ -576,24 +666,33 @@ const App = (() => {
         
         if (zoomIn) {
             zoomIn.addEventListener('click', () => {
-                currentZoom = Math.min(currentZoom + 50, 400); // Max 400%
+                currentZoom = Math.min(currentZoom + 50, 400);
                 updateZoom();
             });
         }
         if (zoomOut) {
             zoomOut.addEventListener('click', () => {
-                currentZoom = Math.max(currentZoom - 50, 100); // Min 100%
+                currentZoom = Math.max(currentZoom - 50, 100);
                 updateZoom();
             });
         }
     }
 
     function updateZoom() {
-        const images = document.querySelectorAll('.viewer-container img');
-        images.forEach(img => {
-            img.style.width = `${currentZoom}%`;
-            img.style.transition = 'width 0.3s ease';
-        });
+        ZoomManager.setScale(currentZoom);
+    }
+
+    function setupRefreshButton() {
+        const btn = document.getElementById('main-refresh-btn');
+        if (btn) {
+            btn.addEventListener('click', () => {
+                btn.style.transform = 'rotate(360deg)';
+                btn.style.transition = 'transform 0.5s ease';
+                setTimeout(() => {
+                    window.location.reload();
+                }, 300);
+            });
+        }
     }
 
     // ===== iOS Install Prompt =====
