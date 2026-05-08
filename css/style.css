@@ -162,7 +162,7 @@ body {
     gap: 12px;
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 100; /* Higher than viewer content */
     background: rgba(10, 1, 24, 0.85);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -558,16 +558,39 @@ body {
 
 .viewer-container {
     flex: 1;
-    overflow-y: auto;
-    overflow-x: auto;
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    overflow: hidden;
     background: #000;
     position: relative;
-    /* Optional: smoother scrolling */
-    -webkit-overflow-scrolling: touch;
+    touch-action: none;
+}
+
+.zoom-content {
+    width: 100%;
+    min-height: 100%;
+    transform-origin: 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    will-change: transform;
+    cursor: grab;
+}
+
+.zoom-content:active {
+    cursor: grabbing;
+}
+
+.viewer-container .img-loading {
+    position: relative;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    overflow: hidden;
 }
 
 .viewer-container img {
@@ -580,50 +603,33 @@ body {
     pointer-events: none;
 }
 
-.viewer-container .img-loading {
-    min-height: 300px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 8px;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-
 /* ===== Watermark ===== */
-.watermark-overlay {
-    position: fixed;
+.watermark-layer {
+    position: absolute;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
+    width: 100%;
+    height: 100%;
     pointer-events: none;
     z-index: 5;
-    display: none;
-}
-
-.watermark-overlay.active {
-    display: block;
     background-image: repeating-linear-gradient(
         -45deg,
         transparent,
         transparent 120px,
-        rgba(255, 255, 255, 0.02) 120px,
-        rgba(255, 255, 255, 0.02) 121px
+        rgba(255, 255, 255, 0.015) 120px,
+        rgba(255, 255, 255, 0.015) 121px
     );
 }
 
 .watermark-text {
     position: absolute;
-    color: rgba(0, 0, 0, 0.25); /* Reduced opacity */
-    font-size: 0.95rem; /* Reduced size */
+    color: rgba(255, 255, 255, 0.08);
+    font-size: 0.85rem;
     font-weight: 700;
     transform: rotate(-35deg);
     pointer-events: none;
     white-space: nowrap;
     letter-spacing: 1px;
-    /* text-shadow completely removed */
 }
 
 /* ===== COMING SOON ===== */
@@ -661,7 +667,7 @@ body {
     font-size: 1.8rem;
     cursor: pointer;
     box-shadow: 0 4px 25px rgba(147, 51, 234, 0.4);
-    z-index: 20;
+    z-index: 200;
     transition: var(--transition);
     display: flex;
     align-items: center;
