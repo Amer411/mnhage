@@ -28,14 +28,16 @@ const App = (() => {
 
             scale = 1; posX = 0; posY = 0;
             applyTransform();
+            updateTouchAction();
 
             if (listenersAttached) return;
             listenersAttached = true;
 
             // --- Touch Start ---
             container.addEventListener('touchstart', (e) => {
-                e.preventDefault();
                 if (e.touches.length === 2) {
+                    // Pinch: always intercept
+                    e.preventDefault();
                     isPinching = true;
                     isPanning = false;
                     startDist = getDist(e.touches);
@@ -43,40 +45,47 @@ const App = (() => {
                     startPosX = posX;
                     startPosY = posY;
                 } else if (e.touches.length === 1 && !isPinching) {
-                    isPanning = true;
+                    if (scale > 1) {
+                        // Zoomed in: intercept for panning
+                        e.preventDefault();
+                        isPanning = true;
+                    }
                     startX = e.touches[0].clientX;
                     startY = e.touches[0].clientY;
                     startPosX = posX;
                     startPosY = posY;
                 }
+                // At scale=1 with 1 finger: do NOT preventDefault → normal scroll works
             }, { passive: false });
 
             // --- Touch Move ---
             container.addEventListener('touchmove', (e) => {
-                e.preventDefault();
                 if (e.touches.length === 2 && isPinching) {
+                    e.preventDefault();
                     const dist = getDist(e.touches);
                     const newScale = Math.max(1, Math.min(5, startScale * (dist / startDist)));
                     scale = newScale;
                     applyTransform();
-                } else if (e.touches.length === 1 && isPanning && scale > 1) {
+                } else if (e.touches.length === 1 && scale > 1) {
+                    e.preventDefault();
                     const dx = e.touches[0].clientX - startX;
                     const dy = e.touches[0].clientY - startY;
                     posX = startPosX + dx;
                     posY = startPosY + dy;
                     applyTransform();
                 }
+                // At scale=1 with 1 finger: do NOT preventDefault → normal scroll works
             }, { passive: false });
 
             // --- Touch End ---
             container.addEventListener('touchend', (e) => {
                 if (isPinching && e.touches.length < 2) {
                     isPinching = false;
-                    // Snap back to 1x if barely zoomed
                     if (scale < 1.1) {
                         scale = 1; posX = 0; posY = 0;
                         applyTransform();
                     }
+                    updateTouchAction();
                 }
                 if (e.touches.length === 0) {
                     isPanning = false;
@@ -84,14 +93,12 @@ const App = (() => {
                     // Double-tap detection
                     const now = Date.now();
                     if (now - lastTapTime < 300) {
-                        // Toggle zoom
                         if (scale > 1.1) {
                             scale = 1; posX = 0; posY = 0;
                             currentZoom = 100;
                         } else {
                             scale = 2.5;
                             currentZoom = 250;
-                            // Zoom toward tap point
                             const rect = container.getBoundingClientRect();
                             const tapX = e.changedTouches[0].clientX - rect.left;
                             const tapY = e.changedTouches[0].clientY - rect.top;
@@ -99,12 +106,21 @@ const App = (() => {
                             posY = (rect.height / 2 - tapY) * (scale - 1);
                         }
                         applyTransform();
+                        updateTouchAction();
                         lastTapTime = 0;
+                        e.preventDefault();
                     } else {
                         lastTapTime = now;
                     }
                 }
             }, { passive: false });
+        }
+
+        function updateTouchAction() {
+            if (!container) return;
+            // At normal zoom: allow native scroll. Zoomed in: we handle everything.
+            container.style.touchAction = scale > 1 ? 'none' : 'pan-y';
+            container.style.overflow = scale > 1 ? 'hidden' : 'auto';
         }
 
         function applyTransform() {
@@ -116,12 +132,14 @@ const App = (() => {
         function reset() {
             scale = 1; posX = 0; posY = 0;
             applyTransform();
+            updateTouchAction();
         }
 
         function setScale(s) {
             scale = Math.max(1, s / 100);
             if (scale <= 1) { posX = 0; posY = 0; }
             applyTransform();
+            updateTouchAction();
         }
 
         return { init, reset, setScale };
