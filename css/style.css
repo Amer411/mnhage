@@ -558,10 +558,11 @@ body {
 
 .viewer-container {
     flex: 1;
-    overflow: hidden;
+    overflow: auto;
     background: #000;
     position: relative;
-    touch-action: none;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
 }
 
 .zoom-content {
