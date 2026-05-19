@@ -55,21 +55,15 @@ const Auth = (() => {
         const encodedPw = encodeURIComponent(passwordStr).replace(/\./g, '%2E');
         const clientId = generateClientId();
 
-        // 1. Check if password was already used by ANOTHER device
+        // 1. Check if password was already used (strict: block all re-use)
         const usedCheckUrl = `${FIREBASE_DB}/used_passwords/${passwordStr}.json`;
         try {
             const usedResp = await fetch(usedCheckUrl);
             if (usedResp.ok) {
                 const usedData = await usedResp.json();
                 if (usedData !== null) {
-                    // Password was used. Check if it's the same device.
-                    if (usedData.client_id && usedData.client_id !== clientId) {
-                        throw new Error('كلمة المرور مستخدمة بالفعل على جهاز آخر');
-                    }
-                    // If we want to block even the same device from re-entering (strict one-time entry):
-                    // throw new Error('كلمة المرور مستخدمة بالفعل ولا يمكن استخدامها مرة أخرى');
-                    
-                    // Note: We currently allow the same device to re-login if they log out.
+                    // Password was already used - block entry completely
+                    throw new Error('كلمة المرور مستخدمة بالفعل ولا يمكن استخدامها مرة أخرى');
                 }
             }
         } catch (err) {

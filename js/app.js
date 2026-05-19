@@ -234,7 +234,7 @@ const App = (() => {
         if (target) {
             target.classList.add('active');
             currentScreen = screenId;
-            
+
             // Scroll to top
             target.querySelector('.screen-content')?.scrollTo(0, 0);
         }
@@ -335,7 +335,7 @@ const App = (() => {
         if (data.catId !== undefined && data.subId === undefined) {
             const cat = ContentData.answers[data.catId];
             if (headerTitle) headerTitle.textContent = cat.name;
-            
+
             cat.subs.forEach((sub, sIdx) => {
                 const div = document.createElement('div');
                 div.className = 'category-card';
@@ -369,7 +369,7 @@ const App = (() => {
             const row = document.createElement('div');
             row.className = 'years-row';
             row.style.gridTemplateColumns = 'repeat(auto-fit, minmax(130px, 1fr))';
-            
+
             buttons.forEach(btnInfo => {
                 const btn = document.createElement('button');
                 btn.className = 'year-btn';
@@ -429,7 +429,7 @@ const App = (() => {
             row.className = 'years-row'; // reusing this class for styling
             // Adjust the grid for longer summary button texts
             row.style.gridTemplateColumns = 'repeat(auto-fit, minmax(130px, 1fr))';
-            
+
             subj.buttons.forEach(btnInfo => {
                 const btn = document.createElement('button');
                 btn.className = 'year-btn';
@@ -569,7 +569,7 @@ const App = (() => {
         if (title) title.textContent = data.title;
         if (counter) counter.textContent = `${data.urls.length} صورة`;
         if (!zoomContent) return;
-        
+
         zoomContent.innerHTML = '';
         currentZoom = 100;
         ZoomManager.init('zoom-content', 'viewer-container');
@@ -578,7 +578,7 @@ const App = (() => {
         const wrappers = data.urls.map((url, i) => {
             const wrapper = document.createElement('div');
             wrapper.className = 'img-loading';
-            
+
             const loadingText = document.createElement('div');
             loadingText.textContent = `جاري التحميل... (صورة ${i + 1})`;
             loadingText.style.position = 'absolute';
@@ -615,7 +615,7 @@ const App = (() => {
         const xhr = new XMLHttpRequest();
         xhr.open('GET', url, true);
         xhr.responseType = 'blob';
-        
+
         xhr.onprogress = (e) => {
             if (e.lengthComputable) {
                 const percent = Math.round((e.loaded / e.total) * 100);
@@ -626,7 +626,7 @@ const App = (() => {
                 loadingText.textContent = `جاري التحميل... ${kb}KB (صورة ${index + 1})`;
             }
         };
-        
+
         xhr.onload = () => {
             if (xhr.status === 200) {
                 const blob = xhr.response;
@@ -637,7 +637,7 @@ const App = (() => {
                 img.src = url;
             }
         };
-        
+
         xhr.onerror = () => {
             console.warn(`XHR failed for image ${index + 1}, falling back to direct src`);
             // Fallback: direct img.src load
@@ -647,7 +647,7 @@ const App = (() => {
                 loadingText.style.color = '#ef4444';
             };
         };
-        
+
         xhr.send();
     }
 
@@ -656,7 +656,7 @@ const App = (() => {
         const overlay = document.getElementById('watermark-overlay');
         if (!overlay) return;
         overlay.innerHTML = '';
-        
+
         const userId = Auth.getUserId();
         // Fixed positions across the screen - always visible regardless of zoom/pan
         const positions = [
@@ -683,7 +683,7 @@ const App = (() => {
     function setupViewerZoom() {
         const zoomIn = document.getElementById('zoom-in');
         const zoomOut = document.getElementById('zoom-out');
-        
+
         if (zoomIn) {
             zoomIn.addEventListener('click', () => {
                 currentZoom = Math.min(currentZoom + 50, 400);
@@ -718,16 +718,16 @@ const App = (() => {
     // ===== iOS Install Prompt =====
     function checkIOSInstallPrompt() {
         // Check if iOS
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
         // Check if already in standalone mode (installed as PWA)
-        const isStandalone = window.navigator.standalone === true || 
-                             window.matchMedia('(display-mode: standalone)').matches;
-        
+        const isStandalone = window.navigator.standalone === true ||
+            window.matchMedia('(display-mode: standalone)').matches;
+
         // Check if user previously dismissed
         const dismissed = localStorage.getItem('ios_install_dismissed');
-        
+
         if (isIOS && !isStandalone && !dismissed) {
             // Show banner after a short delay
             setTimeout(() => {
@@ -736,7 +736,7 @@ const App = (() => {
                     banner.classList.remove('hidden');
                 }
             }, 2000);
-            
+
             // Close button handler
             document.getElementById('ios-banner-close')?.addEventListener('click', () => {
                 const banner = document.getElementById('ios-install-banner');
