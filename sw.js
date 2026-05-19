@@ -51,15 +51,9 @@ self.addEventListener('fetch', (event) => {
     // Skip non-GET requests and browser extensions
     if (event.request.method !== 'GET' || !url.protocol.startsWith('http')) return;
 
-    // Firebase DB requests - Network only, fail silently offline
+    // Firebase DB requests - let browser handle naturally (don't intercept)
+    // When offline, fetch will fail and auth.js try-catch handles it gracefully
     if (url.hostname.includes('firebaseio.com')) {
-        event.respondWith(
-            fetch(event.request).catch(() => {
-                return new Response(JSON.stringify(null), {
-                    headers: { 'Content-Type': 'application/json' }
-                });
-            })
-        );
         return;
     }
 
