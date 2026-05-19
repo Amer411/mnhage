@@ -1,7 +1,7 @@
 // ============================
 // Service Worker - Offline Support
 // ============================
-const CACHE_NAME = 'almnhaj-v14';
+const CACHE_NAME = 'almnhaj-v15';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -77,19 +77,25 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Strategy: Cache-First for Images
+    // Strategy: Cache-First for Images (including cross-origin Firebase Storage)
     if (event.request.destination === 'image' || url.pathname.match(/\.(png|jpg|jpeg|gif|svg|webp)$/)) {
         event.respondWith(
             caches.match(event.request).then((cachedResponse) => {
                 if (cachedResponse) return cachedResponse;
                 
                 return fetch(event.request).then((networkResponse) => {
-                    if (networkResponse.ok) {
+                    // Cache both normal (ok) and opaque responses
+                    // Opaque responses come from cross-origin <img> loads (e.g. Firebase Storage)
+                    // They have status=0 and ok=false, but are still valid and cacheable
+                    if (networkResponse.ok || networkResponse.type === 'opaque') {
                         const cacheCopy = networkResponse.clone();
                         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
                     }
                     return networkResponse;
-                }).catch(() => null);
+                }).catch(() => {
+                    // Image unavailable offline and not cached
+                    return new Response('', { status: 404, statusText: 'Image not cached' });
+                });
             })
         );
         return;
