@@ -592,45 +592,17 @@ const App = (() => {
         });
     }
 
-    // Load image with progress bar using XMLHttpRequest (works with CORS unlike fetch streaming)
+    // Load image directly via img.src (avoids CORS issues with Firebase Storage)
     function loadImageWithProgress(img, loadingText, url, index) {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
-        xhr.responseType = 'blob';
+        loadingText.textContent = `جاري التحميل... (صورة ${index + 1})`;
         
-        xhr.onprogress = (e) => {
-            if (e.lengthComputable) {
-                const percent = Math.round((e.loaded / e.total) * 100);
-                loadingText.textContent = `جاري التحميل... %${percent} (صورة ${index + 1})`;
-            } else {
-                // No content-length, show loaded size
-                const kb = Math.round(e.loaded / 1024);
-                loadingText.textContent = `جاري التحميل... ${kb}KB (صورة ${index + 1})`;
-            }
+        img.onerror = () => {
+            loadingText.textContent = `⚠️ فشل تحميل الصورة ${index + 1}`;
+            loadingText.style.color = '#ef4444';
         };
         
-        xhr.onload = () => {
-            if (xhr.status === 200) {
-                const blob = xhr.response;
-                const blobUrl = URL.createObjectURL(blob);
-                img.src = blobUrl;
-            } else {
-                // Fallback to direct src
-                img.src = url;
-            }
-        };
-        
-        xhr.onerror = () => {
-            console.warn(`XHR failed for image ${index + 1}, falling back to direct src`);
-            // Fallback: direct img.src load
-            img.src = url;
-            img.onerror = () => {
-                loadingText.textContent = `⚠️ فشل تحميل الصورة ${index + 1}`;
-                loadingText.style.color = '#ef4444';
-            };
-        };
-        
-        xhr.send();
+        // Direct img.src bypasses CORS - <img> tags are exempt from same-origin policy
+        img.src = url;
     }
 
     // ===== Watermark =====
