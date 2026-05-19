@@ -162,7 +162,6 @@ const App = (() => {
         setupBackButton();
         setupViewerZoom();
         setupRefreshButton();
-        Chatbot.init();
 
         // Browser back button
         window.addEventListener('popstate', () => {
@@ -239,12 +238,7 @@ const App = (() => {
             target.querySelector('.screen-content')?.scrollTo(0, 0);
         }
 
-        // Manage chatbot FAB
-        if (screenId === 'login') {
-            Chatbot.hide();
-        } else {
-            Chatbot.show();
-        }
+
 
         // Manage watermark
         const watermark = document.getElementById('watermark-overlay');
