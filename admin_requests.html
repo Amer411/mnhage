@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة طلبات كلمات المرور - المنهج الشامل</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0118;
+            --card: rgba(255, 255, 255, 0.06);
+            --accent: #ec4899;
+            --secondary: #8b5cf6;
+            --text: #f0e6ff;
+            --error: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%; max-width: 900px;
+            background: var(--card);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 30px; border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        h1 { text-align: center; color: var(--accent); margin-bottom: 10px; }
+        .subtitle { text-align: center; color: rgba(255,255,255,0.5); margin-bottom: 25px; font-size: 0.9rem; }
+
+        .stats-bar {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 12px; margin-bottom: 20px;
+        }
+        .stat-card {
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px; padding: 14px; text-align: center;
+        }
+        .stat-num { font-size: 1.8rem; font-weight: 800; color: var(--accent); line-height: 1; }
+        .stat-label { font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-top: 4px; }
+
+        .filter-bar {
+            display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 8px 16px; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: transparent; color: var(--text);
+            cursor: pointer; font-family: inherit; font-weight: bold; font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .filter-btn.active { background: var(--secondary); border-color: var(--secondary); }
+        .filter-btn:hover { border-color: var(--secondary); }
+
+        .requests-list { display: flex; flex-direction: column; gap: 12px; }
+
+        .request-card {
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px; padding: 18px;
+            transition: all 0.3s;
+        }
+        .request-card:hover { border-color: rgba(255,255,255,0.15); }
+        .request-card.approved { border-right: 4px solid var(--success); }
+        .request-card.rejected { border-right: 4px solid var(--error); opacity: 0.6; }
+        .request-card.pending { border-right: 4px solid var(--warning); }
+
+        .request-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .request-status {
+            padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold;
+        }
+        .status-pending { background: rgba(245,158,11,0.2); color: var(--warning); }
+        .status-approved { background: rgba(16,185,129,0.2); color: var(--success); }
+        .status-rejected { background: rgba(239,68,68,0.2); color: var(--error); }
+
+        .request-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .info-item { display: flex; align-items: center; gap: 6px; font-size: 0.95rem; }
+        .info-label { color: rgba(255,255,255,0.5); }
+
+        .request-date { font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-bottom: 12px; }
+
+        .request-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn {
+            padding: 10px 18px; border: none; border-radius: 10px;
+            font-weight: bold; cursor: pointer; font-family: 'Tajawal', sans-serif;
+            display: flex; align-items: center; gap: 6px;
+            transition: all 0.2s; font-size: 0.9rem;
+        }
+        .btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .btn-accept { background: var(--success); color: white; }
+        .btn-reject { background: var(--error); color: white; }
+        .btn-whatsapp { background: #25D366; color: white; }
+        .btn-refresh { background: var(--secondary); color: white; }
+
+        .password-display {
+            background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3);
+            border-radius: 10px; padding: 10px 14px; margin-top: 10px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .password-display .pw-text { font-weight: 800; color: var(--success); font-size: 1.1rem; letter-spacing: 1px; }
+        .btn-copy {
+            padding: 6px 12px; border-radius: 8px; border: none;
+            background: rgba(255,255,255,0.1); color: white;
+            cursor: pointer; font-family: inherit; font-size: 0.8rem;
+        }
+
+        .empty-state { text-align: center; padding: 40px; color: rgba(255,255,255,0.4); }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 10px; }
+
+        #status-msg {
+            text-align: center; padding: 10px; border-radius: 8px;
+            margin-bottom: 15px; font-weight: bold;
+        }
+        .hidden { display: none !important; }
+
+        /* Auth */
+        #auth-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg); z-index: 1000;
+            display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+        .auth-card {
+            background: var(--card); padding: 30px; border-radius: 20px;
+            width: 100%; max-width: 350px; text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .auth-card input {
+            width: 100%; padding: 12px; border-radius: 10px; border: none;
+            background: rgba(255,255,255,0.1); color: white;
+            text-align: center; margin-bottom: 15px; font-size: 1.1rem; box-sizing: border-box;
+        }
+        .auth-card .btn { width: 100%; justify-content: center; }
+
+        @media (max-width: 600px) {
+            .request-info { grid-template-columns: 1fr; }
+            .stats-bar { gap: 6px; }
+            .stat-num { font-size: 1.3rem; }
+            .container { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Auth -->
+    <div id="auth-overlay">
+        <div class="auth-card">
+            <h1 style="font-size:1.3rem;">🔐 دخول المشرف</h1>
+            <input type="password" id="admin-pass" placeholder="كلمة مرور لوحة التحكم">
+            <button class="btn btn-accept" onclick="checkAuth()">دخول</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>📋 إدارة طلبات كلمات المرور</h1>
+        <p class="subtitle">قبول أو رفض طلبات الطلاب للحصول على كلمة مرور</p>
+
+        <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+            <button class="btn btn-refresh" onclick="loadRequests()" style="flex:1;">🔄 تحديث الطلبات</button>
+            <a href="admin_passwords.html" class="btn" style="flex:1; background:rgba(255,255,255,0.1); color:var(--text); text-decoration:none; justify-content:center;">⚙️ إدارة كلمات المرور</a>
+        </div>
+
+        <div id="status-msg" class="hidden"></div>
+
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-num" id="stat-pending" style="color:var(--warning);">0</div>
+                <div class="stat-label">قيد الانتظار</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num" id="stat-approved" style="color:var(--success);">0</div>
+                <div class="stat-label">مقبول</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num" id="stat-rejected" style="color:var(--error);">0</div>
+                <div class="stat-label">مرفوض</div>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <button class="filter-btn active" data-filter="pending" onclick="setFilter('pending')">⏳ قيد الانتظار</button>
+            <button class="filter-btn" data-filter="approved" onclick="setFilter('approved')">✅ مقبول</button>
+            <button class="filter-btn" data-filter="rejected" onclick="setFilter('rejected')">❌ مرفوض</button>
+            <button class="filter-btn" data-filter="all" onclick="setFilter('all')">الكل</button>
+        </div>
+
+        <div class="requests-list" id="requests-list">
+            <div class="empty-state">
+                <div class="icon">📭</div>
+                <p>جاري التحميل...</p>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const FIREBASE_BASE = 'https://almnhag-f48fd-default-rtdb.firebaseio.com';
+    let allRequests = [];
+    let currentFilter = 'pending';
+
+    function checkAuth() {
+        const pass = document.getElementById('admin-pass').value;
+        if (pass === 'amr123') {
+            document.getElementById('auth-overlay').classList.add('hidden');
+            loadRequests();
+        } else {
+            alert('كلمة المرور غير صحيحة');
+        }
+    }
+    document.getElementById('admin-pass').addEventListener('keypress', e => {
+        if (e.key === 'Enter') checkAuth();
+    });
+
+    async function loadRequests() {
+        showStatus('جاري تحميل الطلبات...', 'info');
+        try {
+            const resp = await fetch(`${FIREBASE_BASE}/password_requests.json`);
+            const data = await resp.json();
+            if (!data) {
+                allRequests = [];
+            } else {
+                allRequests = Object.entries(data).map(([id, req]) => ({ id, ...req }));
+                allRequests.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            }
+            updateStats();
+            renderRequests();
+            showStatus(`تم تحميل ${allRequests.length} طلب`, 'success');
+        } catch (err) {
+            showStatus('فشل تحميل الطلبات ❌', 'error');
+        }
+    }
+
+    function updateStats() {
+        document.getElementById('stat-pending').textContent = allRequests.filter(r => r.status === 'pending').length;
+        document.getElementById('stat-approved').textContent = allRequests.filter(r => r.status === 'approved').length;
+        document.getElementById('stat-rejected').textContent = allRequests.filter(r => r.status === 'rejected').length;
+    }
+
+    function setFilter(filter) {
+        currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.filter === filter);
+        });
+        renderRequests();
+    }
+
+    function renderRequests() {
+        const container = document.getElementById('requests-list');
+        let filtered = currentFilter === 'all' ? allRequests : allRequests.filter(r => r.status === currentFilter);
+
+        if (filtered.length === 0) {
+            container.innerHTML = `<div class="empty-state"><div class="icon">📭</div><p>لا توجد طلبات ${currentFilter === 'pending' ? 'قيد الانتظار' : ''}</p></div>`;
+            return;
+        }
+
+        container.innerHTML = filtered.map(req => {
+            const date = req.timestamp ? new Date(req.timestamp * 1000).toLocaleString('ar-YE') : 'غير محدد';
+            const statusClass = req.status || 'pending';
+            const statusLabel = req.status === 'approved' ? '✅ مقبول' : req.status === 'rejected' ? '❌ مرفوض' : '⏳ قيد الانتظار';
+            const statusBadge = req.status === 'approved' ? 'status-approved' : req.status === 'rejected' ? 'status-rejected' : 'status-pending';
+
+            let actionsHtml = '';
+            if (req.status === 'pending') {
+                actionsHtml = `
+                    <button class="btn btn-accept" onclick="acceptRequest('${req.id}', '${escapeAttr(req.name)}', '${escapeAttr(req.phone)}')">✅ قبول وإنشاء كلمة مرور</button>
+                    <button class="btn btn-reject" onclick="rejectRequest('${req.id}')">❌ رفض</button>
+                    <button class="btn btn-whatsapp" onclick="openWhatsApp('${escapeAttr(req.name)}', '${escapeAttr(req.phone)}')">💬 واتساب</button>
+                `;
+            } else if (req.status === 'approved') {
+                actionsHtml = `
+                    <div class="password-display">
+                        <span>🔑 كلمة المرور: <span class="pw-text">${req.generated_password || '---'}</span></span>
+                        <button class="btn-copy" onclick="copyText('${req.generated_password || ''}')">📋 نسخ</button>
+                    </div>
+                    <button class="btn btn-whatsapp" style="margin-top:8px;" onclick="sendPasswordWhatsApp('${escapeAttr(req.name)}', '${escapeAttr(req.phone)}', '${req.generated_password || ''}')">💬 إرسال الكلمة عبر واتساب</button>
+                `;
+            }
+
+            return `
+                <div class="request-card ${statusClass}">
+                    <div class="request-header">
+                        <span style="font-weight:bold; font-size:1.05rem;">طلب من: ${escapeHtml(req.name || 'غير معروف')}</span>
+                        <span class="request-status ${statusBadge}">${statusLabel}</span>
+                    </div>
+                    <div class="request-info">
+                        <div class="info-item">👤 <span class="info-label">الاسم:</span> <strong>${escapeHtml(req.name || '---')}</strong></div>
+                        <div class="info-item">📱 <span class="info-label">الهاتف:</span> <strong>${escapeHtml(req.phone || '---')}</strong></div>
+                    </div>
+                    <div class="request-date">📅 ${date}</div>
+                    <div class="request-actions">${actionsHtml}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function generatePassword() {
+        return Math.floor(100000000 + Math.random() * 900000000).toString();
+    }
+
+    async function acceptRequest(id, name, phone) {
+        if (!confirm(`هل تريد قبول طلب "${name}" وإضافة رقم هاتفه (${phone}) ككلمة مرور؟`)) return;
+        showStatus('جاري إضافة كلمة المرور...', 'info');
+
+        try {
+            // كلمة المرور = رقم هاتف الطالب
+            const newPassword = phone.trim();
+
+            // 1. Add phone as password to /passwords/
+            const pwObj = {};
+            pwObj[newPassword] = newPassword;
+            const addResp = await fetch(`${FIREBASE_BASE}/passwords.json`, {
+                method: 'PATCH',
+                body: JSON.stringify(pwObj),
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!addResp.ok) {
+                throw new Error('فشل إضافة كلمة المرور لقاعدة البيانات');
+            }
+
+            // 2. Update request status
+            const updateResp = await fetch(`${FIREBASE_BASE}/password_requests/${id}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    status: 'approved',
+                    generated_password: newPassword,
+                    approved_at: Date.now() / 1000
+                }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!updateResp.ok) {
+                throw new Error('فشل تحديث حالة الطلب');
+            }
+
+            // Update local
+            const req = allRequests.find(r => r.id === id);
+            if (req) {
+                req.status = 'approved';
+                req.generated_password = newPassword;
+            }
+            updateStats();
+            renderRequests();
+            showStatus(`تم قبول الطلب ✅ كلمة المرور: ${newPassword}`, 'success');
+        } catch (err) {
+            showStatus('فشل قبول الطلب ❌ ' + err.message, 'error');
+        }
+    }
+
+    async function rejectRequest(id) {
+        if (!confirm('هل تريد رفض هذا الطلب؟')) return;
+        try {
+            await fetch(`${FIREBASE_BASE}/password_requests/${id}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify({ status: 'rejected', rejected_at: Date.now() / 1000 }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const req = allRequests.find(r => r.id === id);
+            if (req) req.status = 'rejected';
+            updateStats();
+            renderRequests();
+            showStatus('تم رفض الطلب', 'success');
+        } catch (err) {
+            showStatus('فشل رفض الطلب ❌', 'error');
+        }
+    }
+
+    function openWhatsApp(name, phone) {
+        const msg = `مرحباً ${name}،\nبخصوص طلبك لكلمة مرور تطبيق المنهج الشامل...`;
+        window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    function sendPasswordWhatsApp(name, phone, password) {
+        const msg = `مرحباً ${name} 👋\n\nتم قبول طلبك ✅\n\n🔑 كلمة المرور الخاصة بك:\n${password}\n\nيمكنك الدخول إلى تطبيق المنهج الشامل الآن.`;
+        window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    function copyText(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            showStatus('تم النسخ ✅', 'success');
+        });
+    }
+
+    function showStatus(text, type) {
+        const el = document.getElementById('status-msg');
+        el.textContent = text;
+        el.classList.remove('hidden');
+        el.style.color = type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#8b5cf6';
+        if (type === 'success') setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+    function escapeAttr(str) {
+        return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+</script>
+</body>
+</html>
