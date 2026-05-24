@@ -158,6 +158,7 @@ const App = (() => {
 
         // Event listeners
         setupLoginForm();
+        setupPasswordRequest();
         setupNavigation();
         setupBackButton();
         setupViewerZoom();
@@ -200,6 +201,80 @@ const App = (() => {
                 if (btnLoader) btnLoader.classList.add('hidden');
                 btn.disabled = false;
             }
+        });
+    }
+
+    function setupPasswordRequest() {
+        const btn = document.getElementById('request-password-btn');
+        if (!btn) return;
+
+        btn.addEventListener('click', () => {
+            Swal.fire({
+                title: 'طلب كلمة مرور للطالب',
+                html: `
+                    <input type="text" id="swal-student-name" class="swal2-input" placeholder="اسم الطالب الثلاثي" style="direction: rtl; font-family: 'Tajawal', sans-serif; margin-bottom: 10px;">
+                    <input type="tel" id="swal-student-phone" class="swal2-input" placeholder="رقم الهاتف" style="direction: rtl; font-family: 'Tajawal', sans-serif;">
+                `,
+                confirmButtonText: 'إرسال الطلب',
+                showCancelButton: true,
+                cancelButtonText: 'إلغاء',
+                focusConfirm: false,
+                preConfirm: () => {
+                    const name = document.getElementById('swal-student-name').value;
+                    const phone = document.getElementById('swal-student-phone').value;
+                    if (!name || !phone) {
+                        Swal.showValidationMessage('يرجى إدخال الاسم ورقم الهاتف');
+                        return false;
+                    }
+                    return { name, phone };
+                }
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const { name, phone } = result.value;
+                    
+                    Swal.fire({
+                        title: 'جاري الإرسال...',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    try {
+                        const FIREBASE_DB = 'https://almnhag-f48fd-default-rtdb.firebaseio.com';
+                        await fetch(`${FIREBASE_DB}/password_requests.json`, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                name: name,
+                                phone: phone,
+                                timestamp: Date.now() / 1000,
+                                status: 'pending'
+                            }),
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+
+                        Swal.fire({
+                            icon: 'success', 
+                            title: 'تم بنجاح!',
+                            html: 'تم إرسال طلبك للإدارة.<br><br>سيتم تحويلك إلى واتساب لإكمال الطلب.',
+                            confirmButtonText: 'فتح الواتساب', 
+                            showCancelButton: false, 
+                            allowOutsideClick: false
+                        }).then((result2) => {
+                            if (result2.isConfirmed) {
+                                const msg = `📚 *طلب كلمة مرور جديدة للطالب*\n\n👤 *الاسم:* ${name}\n📱 *رقم الهاتف:* ${phone}`;
+                                window.open(`https://wa.me/967776964284?text=${encodeURIComponent(msg)}`, '_blank');
+                            }
+                        });
+                    } catch (error) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'خطأ',
+                            text: 'حدث خطأ في الإتصال بالخادم، يرجى المحاولة مرة أخرى'
+                        });
+                    }
+                }
+            });
         });
     }
 
