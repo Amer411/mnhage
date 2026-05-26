@@ -212,7 +212,13 @@ const App = (() => {
             Swal.fire({
                 title: 'طلب كلمة مرور للطالب',
                 html: `
-                    <input type="text" id="swal-student-name" class="swal2-input" placeholder="اسم الطالب الثلاثي" style="direction: rtl; font-family: 'Tajawal', sans-serif; margin-bottom: 10px;">
+                    <style>
+                        #swal-student-school::placeholder {
+                            font-size: 0.8rem;
+                        }
+                    </style>
+                    <input type="text" id="swal-student-name" class="swal2-input" placeholder="اسم الطالب" style="direction: rtl; font-family: 'Tajawal', sans-serif; margin-bottom: 10px;">
+                    <input type="text" id="swal-student-school" class="swal2-input" placeholder="اسم الثانوية التي تدرس فيها" style="direction: rtl; font-family: 'Tajawal', sans-serif; margin-bottom: 10px;">
                     <input type="tel" id="swal-student-phone" class="swal2-input" placeholder="رقم الهاتف" style="direction: rtl; font-family: 'Tajawal', sans-serif;">
                 `,
                 confirmButtonText: 'إرسال الطلب',
@@ -221,16 +227,17 @@ const App = (() => {
                 focusConfirm: false,
                 preConfirm: () => {
                     const name = document.getElementById('swal-student-name').value;
+                    const school = document.getElementById('swal-student-school').value;
                     const phone = document.getElementById('swal-student-phone').value;
-                    if (!name || !phone) {
-                        Swal.showValidationMessage('يرجى إدخال الاسم ورقم الهاتف');
+                    if (!name || !school || !phone) {
+                        Swal.showValidationMessage('يرجى إدخال الاسم، اسم الثانوية ورقم الهاتف');
                         return false;
                     }
-                    return { name, phone };
+                    return { name, school, phone };
                 }
             }).then(async (result) => {
                 if (result.isConfirmed) {
-                    const { name, phone } = result.value;
+                    const { name, school, phone } = result.value;
                     
                     Swal.fire({
                         title: 'جاري الإرسال...',
@@ -246,6 +253,7 @@ const App = (() => {
                             method: 'POST',
                             body: JSON.stringify({
                                 name: name,
+                                school: school,
                                 phone: phone,
                                 timestamp: Date.now() / 1000,
                                 status: 'pending'
@@ -262,7 +270,7 @@ const App = (() => {
                             allowOutsideClick: false
                         }).then((result2) => {
                             if (result2.isConfirmed) {
-                                const msg = `📚 *طلب كلمة مرور جديدة للطالب*\n\n👤 *الاسم:* ${name}\n📱 *رقم الهاتف:* ${phone}`;
+                                const msg = `📚 *طلب كلمة مرور جديدة للطالب*\n\n👤 *الاسم:* ${name}\n🏫 *الثانوية:* ${school}\n📱 *رقم الهاتف:* ${phone}`;
                                 window.open(`https://wa.me/967776964284?text=${encodeURIComponent(msg)}`, '_blank');
                             }
                         });
