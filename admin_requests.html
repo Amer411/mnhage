@@ -271,7 +271,7 @@
                 actionsHtml = `
                     <button class="btn btn-accept" onclick="acceptRequest('${req.id}', '${escapeAttr(req.name)}', '${escapeAttr(req.phone)}')">✅ قبول وإنشاء كلمة مرور</button>
                     <button class="btn btn-reject" onclick="rejectRequest('${req.id}')">❌ رفض</button>
-                    <button class="btn btn-whatsapp" onclick="openWhatsApp('${escapeAttr(req.name)}', '${escapeAttr(req.phone)}')">💬 واتساب</button>
+                    <button class="btn btn-whatsapp" onclick="openWhatsApp('${escapeAttr(req.name)}', '${escapeAttr(req.phone)}', '${escapeAttr(req.school || '')}')">💬 واتساب</button>
                 `;
             } else if (req.status === 'approved') {
                 actionsHtml = `
@@ -291,6 +291,7 @@
                     </div>
                     <div class="request-info">
                         <div class="info-item">👤 <span class="info-label">الاسم:</span> <strong>${escapeHtml(req.name || '---')}</strong></div>
+                        <div class="info-item">🏫 <span class="info-label">الثانوية:</span> <strong>${escapeHtml(req.school || 'غير محدد')}</strong></div>
                         <div class="info-item">📱 <span class="info-label">الهاتف:</span> <strong>${escapeHtml(req.phone || '---')}</strong></div>
                     </div>
                     <div class="request-date">📅 ${date}</div>
@@ -372,8 +373,11 @@
         }
     }
 
-    function openWhatsApp(name, phone) {
-        const msg = `مرحباً ${name}،\nبخصوص طلبك لكلمة مرور تطبيق المنهج الشامل...`;
+    function openWhatsApp(name, phone, school) {
+        let msg = `مرحباً ${name}،\nبخصوص طلبك لكلمة مرور تطبيق المنهج الشامل...`;
+        if (school) {
+            msg = `مرحباً ${name}،\nبخصوص طلبك لكلمة مرور تطبيق المنهج الشامل لطالب ثانوية (${school})...`;
+        }
         window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
