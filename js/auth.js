@@ -5,6 +5,26 @@ const Auth = (() => {
     const FIREBASE_DB = 'https://almnhag-f48fd-default-rtdb.firebaseio.com';
     const LOGIN_KEY = 'almnhaj_login';
 
+    function normalizePhone(phone) {
+        if (!phone) return '';
+        const arabicDigits = /[٠١٢٣٤٥٦٧٨٩]/g;
+        let normalized = String(phone).replace(arabicDigits, function (d) {
+            return d.charCodeAt(0) - 1632;
+        });
+        normalized = normalized.replace(/\D/g, '');
+        if (normalized.startsWith('00967')) {
+            normalized = normalized.slice(5);
+        } else if (normalized.startsWith('967')) {
+            normalized = normalized.slice(3);
+        } else if (normalized.startsWith('0')) {
+            normalized = normalized.slice(1);
+        }
+        if (normalized.length > 9) {
+            normalized = normalized.slice(-9);
+        }
+        return normalized;
+    }
+
     // Generate a unique client ID for this device/session
     function generateClientId() {
         const stored = localStorage.getItem('almnhaj_client_id');
@@ -51,8 +71,27 @@ const Auth = (() => {
             throw new Error('أدخل كلمة المرور');
         }
 
-        const passwordStr = String(password).trim();
-        const encodedPw = encodeURIComponent(passwordStr).replace(/\./g, '%2E');
+        const passwordInput = String(password).trim();
+        let resolvedPw = passwordInput;
+
+        // Try to fetch exact password first, if null try normalized
+        try {
+            const checkResp = await fetch(`${FIREBASE_DB}/passwords/${passwordInput}.json`);
+            if (checkResp.ok) {
+                const checkData = await checkResp.json();
+                if (checkData === null) {
+                    const normPw = normalizePhone(passwordInput);
+                    if (normPw && normPw !== passwordInput) {
+                        const normCheck = await fetch(`${FIREBASE_DB}/passwords/${normPw}.json`);
+                        if (normCheck.ok && (await normCheck.json()) !== null) {
+                            resolvedPw = normPw;
+                        }
+                    }
+                }
+            }
+        } catch (e) {}
+
+        const encodedPw = encodeURIComponent(resolvedPw).replace(/\./g, '%2E');
         const clientId = generateClientId();
 
         // 1. Check if password was already used (strict: block all re-use)
@@ -69,9 +108,9 @@ const Auth = (() => {
                 throw new Error('لا يمكن التحقق من كلمة المرور، حاول مرة أخرى');
             }
 
-            // Check old format (passwordStr) for users who logged in with older code
-            if (encodedPw !== passwordStr) {
-                const usedResp2 = await fetch(`${FIREBASE_DB}/used_passwords/${passwordStr}.json`);
+            // Check old format (resolvedPw) for users who logged in with older code
+            if (encodedPw !== resolvedPw) {
+                const usedResp2 = await fetch(`${FIREBASE_DB}/used_passwords/${resolvedPw}.json`);
                 if (usedResp2.ok) {
                     const usedData2 = await usedResp2.json();
                     if (usedData2 !== null) {
@@ -104,8 +143,8 @@ const Auth = (() => {
         }
 
         // 3. Check and set login lock (short-term concurrency protection)
-        const lockUrl = `${FIREBASE_DB}/lock/${passwordStr}.json`;
-        const activeUrl = `${FIREBASE_DB}/active_passwords/${passwordStr}.json`;
+        const lockUrl = `${FIREBASE_DB}/lock/${resolvedPw}.json`;
+        const activeUrl = `${FIREBASE_DB}/active_passwords/${resolvedPw}.json`;
 
         try {
             const lockResp = await fetch(lockUrl);
@@ -132,7 +171,7 @@ const Auth = (() => {
             });
 
             // 4. Verify password exists in master list
-            const resp = await fetch(`${FIREBASE_DB}/passwords/${passwordStr}.json`);
+            const resp = await fetch(`${FIREBASE_DB}/passwords/${resolvedPw}.json`);
             if (!resp.ok) throw new Error('لا يمكن الوصول إلى قاعدة البيانات');
             const passwordData = await resp.json();
             
@@ -159,7 +198,7 @@ const Auth = (() => {
             // 7. Save to local storage
             localStorage.setItem(LOGIN_KEY, JSON.stringify({
                 logged_in: true,
-                user_info: { user_id: userId, password: passwordStr }
+                user_info: { user_id: userId, password: resolvedPw }
             }));
 
             return { success: true, userId };

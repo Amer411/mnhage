@@ -6,6 +6,26 @@ const App = (() => {
     let currentScreen = 'login';
     let currentZoom = 100;
 
+    function normalizePhone(phone) {
+        if (!phone) return '';
+        const arabicDigits = /[٠١٢٣٤٥٦٧٨٩]/g;
+        let normalized = String(phone).replace(arabicDigits, function (d) {
+            return d.charCodeAt(0) - 1632;
+        });
+        normalized = normalized.replace(/\D/g, '');
+        if (normalized.startsWith('00967')) {
+            normalized = normalized.slice(5);
+        } else if (normalized.startsWith('967')) {
+            normalized = normalized.slice(3);
+        } else if (normalized.startsWith('0')) {
+            normalized = normalized.slice(1);
+        }
+        if (normalized.length > 9) {
+            normalized = normalized.slice(-9);
+        }
+        return normalized;
+    }
+
     // ===== Zoom & Pan Manager =====
     const ZoomManager = (() => {
         let el = null, container = null;
@@ -226,11 +246,16 @@ const App = (() => {
                 cancelButtonText: 'إلغاء',
                 focusConfirm: false,
                 preConfirm: () => {
-                    const name = document.getElementById('swal-student-name').value;
-                    const school = document.getElementById('swal-student-school').value;
-                    const phone = document.getElementById('swal-student-phone').value;
-                    if (!name || !school || !phone) {
+                    const name = document.getElementById('swal-student-name').value.trim();
+                    const school = document.getElementById('swal-student-school').value.trim();
+                    const rawPhone = document.getElementById('swal-student-phone').value.trim();
+                    const phone = normalizePhone(rawPhone);
+                    if (!name || !school || !rawPhone) {
                         Swal.showValidationMessage('يرجى إدخال الاسم، اسم الثانوية ورقم الهاتف');
+                        return false;
+                    }
+                    if (phone.length < 9) {
+                        Swal.showValidationMessage('يرجى إدخال رقم هاتف صحيح (على الأقل 9 أرقام)');
                         return false;
                     }
                     return { name, school, phone };
