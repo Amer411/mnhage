@@ -168,6 +168,11 @@
             <a href="admin_passwords.html" class="btn" style="flex:1; background:rgba(255,255,255,0.1); color:var(--text); text-decoration:none; justify-content:center;">⚙️ إدارة كلمات المرور</a>
         </div>
 
+        <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+            <button class="btn btn-accept" onclick="acceptAllPending()" style="flex:1; justify-content:center; font-size:0.85rem;">✅ قبول كل الطلبات المنتظرة</button>
+            <button class="btn btn-reject" onclick="rejectAllPending()" style="flex:1; justify-content:center; font-size:0.85rem;">❌ رفض كل الطلبات المنتظرة</button>
+        </div>
+
         <div id="status-msg" class="hidden"></div>
 
         <div class="stats-bar">
@@ -301,17 +306,43 @@
         }).join('');
     }
 
+    function normalizePhone(phone) {
+        if (!phone) return '';
+        const arabicDigits = /[٠١٢٣٤٥٦٧٨٩]/g;
+        let normalized = String(phone).replace(arabicDigits, function (d) {
+            return d.charCodeAt(0) - 1632;
+        });
+        normalized = normalized.replace(/\D/g, '');
+        if (normalized.startsWith('00967')) {
+            normalized = normalized.slice(5);
+        } else if (normalized.startsWith('967')) {
+            normalized = normalized.slice(3);
+        } else if (normalized.startsWith('0')) {
+            normalized = normalized.slice(1);
+        }
+        if (normalized.length > 9) {
+            normalized = normalized.slice(-9);
+        }
+        return normalized;
+    }
+
+    function getWhatsAppNumber(phone) {
+        const clean = normalizePhone(phone);
+        return '967' + clean;
+    }
+
     function generatePassword() {
         return Math.floor(100000000 + Math.random() * 900000000).toString();
     }
 
     async function acceptRequest(id, name, phone) {
-        if (!confirm(`هل تريد قبول طلب "${name}" وإضافة رقم هاتفه (${phone}) ككلمة مرور؟`)) return;
+        const cleanPw = normalizePhone(phone);
+        if (!confirm(`هل تريد قبول طلب "${name}" وإضافة رقم هاتفه (${cleanPw}) ككلمة مرور؟`)) return;
         showStatus('جاري إضافة كلمة المرور...', 'info');
 
         try {
-            // كلمة المرور = رقم هاتف الطالب
-            const newPassword = phone.trim();
+            // كلمة المرور = رقم هاتف الطالب المنظف
+            const newPassword = cleanPw;
 
             // 1. Add phone as password to /passwords/
             const pwObj = {};
@@ -373,17 +404,117 @@
         }
     }
 
+    async function acceptAllPending() {
+        const pending = allRequests.filter(r => r.status === 'pending');
+        if (pending.length === 0) {
+            alert('لا توجد طلبات قيد الانتظار لقبولها');
+            return;
+        }
+        if (!confirm(`هل أنت متأكد من قبول جميع الطلبات قيد الانتظار عدد (${pending.length})؟`)) return;
+        
+        showStatus('جاري قبول جميع الطلبات وتوحيد التنسيقات...', 'info');
+        
+        let successCount = 0;
+        let passwordsPatch = {};
+        
+        pending.forEach(req => {
+            const cleanPw = normalizePhone(req.phone);
+            if (cleanPw) {
+                passwordsPatch[cleanPw] = cleanPw;
+            }
+        });
+        
+        try {
+            if (Object.keys(passwordsPatch).length > 0) {
+                const addResp = await fetch(`${FIREBASE_BASE}/passwords.json`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(passwordsPatch),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!addResp.ok) throw new Error('فشل إضافة كلمات المرور الجماعية');
+            }
+            
+            const updatePromises = pending.map(async (req) => {
+                const cleanPw = normalizePhone(req.phone);
+                try {
+                    await fetch(`${FIREBASE_BASE}/password_requests/${req.id}.json`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            status: 'approved',
+                            generated_password: cleanPw,
+                            approved_at: Date.now() / 1000
+                        }),
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    req.status = 'approved';
+                    req.generated_password = cleanPw;
+                    successCount++;
+                } catch (e) {
+                    console.error('Failed to update request', req.id);
+                }
+            });
+            
+            await Promise.all(updatePromises);
+            
+            updateStats();
+            renderRequests();
+            showStatus(`تم قبول ${successCount} طلب بنجاح ✅`, 'success');
+        } catch (err) {
+            showStatus('فشل القبول الجماعي ❌ ' + err.message, 'error');
+        }
+    }
+
+    async function rejectAllPending() {
+        const pending = allRequests.filter(r => r.status === 'pending');
+        if (pending.length === 0) {
+            alert('لا توجد طلبات قيد الانتظار لرفضها');
+            return;
+        }
+        if (!confirm(`هل أنت متأكد من رفض جميع الطلبات قيد الانتظار عدد (${pending.length})؟`)) return;
+        
+        showStatus('جاري رفض جميع الطلبات...', 'info');
+        
+        let successCount = 0;
+        
+        try {
+            const updatePromises = pending.map(async (req) => {
+                try {
+                    await fetch(`${FIREBASE_BASE}/password_requests/${req.id}.json`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ status: 'rejected', rejected_at: Date.now() / 1000 }),
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    req.status = 'rejected';
+                    successCount++;
+                } catch (e) {
+                    console.error('Failed to update request', req.id);
+                }
+            });
+            
+            await Promise.all(updatePromises);
+            
+            updateStats();
+            renderRequests();
+            showStatus(`تم رفض ${successCount} طلب بنجاح ❌`, 'success');
+        } catch (err) {
+            showStatus('فشل الرفض الجماعي ❌ ' + err.message, 'error');
+        }
+    }
+
     function openWhatsApp(name, phone, school) {
         let msg = `مرحباً ${name}،\nبخصوص طلبك لكلمة مرور تطبيق المنهج الشامل...`;
         if (school) {
             msg = `مرحباً ${name}،\nبخصوص طلبك لكلمة مرور تطبيق المنهج الشامل لطالب ثانوية (${school})...`;
         }
-        window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+        const waNum = getWhatsAppNumber(phone);
+        window.open(`https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
     function sendPasswordWhatsApp(name, phone, password) {
         const msg = `مرحباً ${name} 👋\n\nتم قبول طلبك ✅\n\n🔑 كلمة المرور الخاصة بك:\n${password}\n\nيمكنك الدخول إلى تطبيق المنهج الشامل الآن.`;
-        window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+        const waNum = getWhatsAppNumber(phone);
+        window.open(`https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
     function copyText(text) {
