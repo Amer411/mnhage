@@ -94,55 +94,21 @@ const Auth = (() => {
         const encodedPw = encodeURIComponent(resolvedPw).replace(/\./g, '%2E');
         const clientId = generateClientId();
 
-        // 1. Check if password was already used (strict: block all re-use)
-        // Check both key formats for backward compatibility with old entries
-        try {
-            // Check new format (encodedPw)
-            const usedResp1 = await fetch(`${FIREBASE_DB}/used_passwords/${encodedPw}.json`);
-            if (usedResp1.ok) {
-                const usedData1 = await usedResp1.json();
-                if (usedData1 !== null) {
-                    throw new Error('كلمة المرور مستخدمة بالفعل ولا يمكن استخدامها مرة أخرى');
-                }
-            } else {
-                throw new Error('لا يمكن التحقق من كلمة المرور، حاول مرة أخرى');
-            }
-
-            // Check old format (resolvedPw) for users who logged in with older code
-            if (encodedPw !== resolvedPw) {
-                const usedResp2 = await fetch(`${FIREBASE_DB}/used_passwords/${resolvedPw}.json`);
-                if (usedResp2.ok) {
-                    const usedData2 = await usedResp2.json();
-                    if (usedData2 !== null) {
-                        throw new Error('كلمة المرور مستخدمة بالفعل ولا يمكن استخدامها مرة أخرى');
-                    }
-                }
-            }
-        } catch (err) {
-            if (err.message.includes('مستخدمة بالفعل') || err.message.includes('التحقق')) throw err;
-            throw new Error('لا يمكن الاتصال بالخادم، تأكد من اتصالك بالإنترنت');
-        }
-
-        // 2. Check if there is ANY active session (block all re-use)
+        // 1. Check if password was suspended (kicked)
         try {
             const sessionResp = await fetch(`${FIREBASE_DB}/active_sessions/${encodedPw}.json`);
             if (sessionResp.ok) {
                 const sessionData = await sessionResp.json();
-                if (sessionData !== null) {
-                    if (sessionData.status === 'kicked') {
-                        throw new Error('تم إيقاف هذا الكرت نهائياً ولا يمكن استخدامه');
-                    }
-                    // Block if ANY other device has ever used this password
-                    if (sessionData.client_id && sessionData.client_id !== clientId) {
-                        throw new Error('كلمة المرور مستخدمة بالفعل على جهاز آخر');
-                    }
+                if (sessionData !== null && sessionData.status === 'kicked') {
+                    throw new Error('تم إيقاف هذا الكرت نهائياً ولا يمكن استخدامه');
                 }
             }
         } catch (err) {
-            if (err.message.includes('مستخدمة') || err.message.includes('إيقاف')) throw err;
+            if (err.message.includes('إيقاف')) throw err;
+            throw new Error('لا يمكن الاتصال بالخادم، تأكد من اتصالك بالإنترنت');
         }
 
-        // 3. Check and set login lock (short-term concurrency protection)
+        // 2. Check and set login lock (short-term concurrency protection)
         const lockUrl = `${FIREBASE_DB}/lock/${resolvedPw}.json`;
         const activeUrl = `${FIREBASE_DB}/active_passwords/${resolvedPw}.json`;
 
@@ -170,7 +136,7 @@ const Auth = (() => {
                 headers: { 'Content-Type': 'application/json' }
             });
 
-            // 4. Verify password exists in master list
+            // 3. Verify password exists in master list
             const resp = await fetch(`${FIREBASE_DB}/passwords/${resolvedPw}.json`);
             if (!resp.ok) throw new Error('لا يمكن الوصول إلى قاعدة البيانات');
             const passwordData = await resp.json();
@@ -179,11 +145,11 @@ const Auth = (() => {
                 throw new Error('كلمة المرور غير صحيحة');
             }
 
-            // 5. Success! Get/Create User ID and mark as used
+            // 4. Success! Get/Create User ID and mark as used
             const userId = await getOrCreateUserId(encodedPw);
             await uploadUsedPassword(encodedPw, userId, clientId);
 
-            // 6. Register active session
+            // 5. Register active session
             await fetch(`${FIREBASE_DB}/active_sessions/${encodedPw}.json`, {
                 method: 'PUT',
                 body: JSON.stringify({
@@ -195,7 +161,7 @@ const Auth = (() => {
                 headers: { 'Content-Type': 'application/json' }
             });
 
-            // 7. Save to local storage
+            // 6. Save to local storage
             localStorage.setItem(LOGIN_KEY, JSON.stringify({
                 logged_in: true,
                 user_info: { user_id: userId, password: resolvedPw }
